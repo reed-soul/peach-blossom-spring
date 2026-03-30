@@ -1,6 +1,6 @@
 import { useEffect, useRef, useCallback, useState } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
-import { RigidBody, CapsuleCollider, useRapier } from '@react-three/rapier'
+import { RigidBody, CapsuleCollider } from '@react-three/rapier'
 import * as THREE from 'three'
 
 interface PlayerControllerProps {
@@ -28,7 +28,6 @@ function PlayerBody({ speed = 5, sprintSpeed = 8, position = [0, 3, 10] }: Playe
   const isMoving = useRef(false)
   const isTouchDevice = useRef('ontouchstart' in window)
   const canJump = useRef(false)
-  const { rapier, world } = useRapier()
 
   const onMouseMove = useCallback((e: MouseEvent) => {
     if (!document.pointerLockElement) return
@@ -149,13 +148,9 @@ function PlayerBody({ speed = 5, sprintSpeed = 8, position = [0, 3, 10] }: Playe
       camera.rotation.z *= 0.9
     }
 
-    // Ground check via raycast
-    const ray = new rapier.Ray(
-      { x: bodyPos.x, y: bodyPos.y, z: bodyPos.z },
-      { x: 0, y: -1, z: 0 },
-    )
-    const hit = world.castRay(ray, 1.0, true)
-    canJump.current = hit !== null && hit.toi < 0.6
+    // Ground check via y-velocity (simple and reliable)
+    const vel = rigidBody.current.linvel()
+    canJump.current = Math.abs(vel.y) < 0.5 && bodyPos.y < 2
 
     // Prevent falling out of world
     if (bodyPos.y < -10) {
@@ -168,7 +163,6 @@ function PlayerBody({ speed = 5, sprintSpeed = 8, position = [0, 3, 10] }: Playe
     <RigidBody
       ref={rigidBody}
       position={position}
-      enabledRotations={[false, false, false]}
       linearDamping={2}
       mass={1}
       type="dynamic"
