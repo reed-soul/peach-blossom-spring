@@ -3,10 +3,11 @@ import { Html } from '@react-three/drei'
 import { Physics, RigidBody, CuboidCollider } from '@react-three/rapier'
 import { Suspense, useRef, useState, useEffect, useCallback } from 'react'
 import { PlayerController, MobileControls } from '../../engine/PlayerController'
-import { ProceduralTrees } from '../world/ProceduralTrees'
+import { ProceduralTrees, GroundCover, Rocks } from '../world/ProceduralTrees'
 import { PetalParticles } from '../world/PetalParticles'
 import { Terrain } from '../world/Terrain'
-import { Water } from '../world/Water'
+import { Stream } from '../world/Stream'
+import { MountainRange } from '../world/MountainRange'
 import { DayNightCycle } from '../world/DayNightCycle'
 import { InkWashEffect } from '../world/InkWashEffect'
 import { useAudio } from '../../engine/AudioManager'
@@ -263,7 +264,7 @@ export default function PeachForestScene() {
         gl={{ antialias: true, alpha: false }}
       >
         <Physics gravity={[0, -9.81, 0]} debug={false}>
-        <fog attach="fog" args={['#3d1f2f', 10, 60]} />
+        <fog attach="fog" args={['#c5d0d8', 15, 80]} />
 
         {/* Lighting - managed by DayNightCycle */}
         <DayNightCycle speed={0.015} />
@@ -293,8 +294,11 @@ export default function PeachForestScene() {
 
         <Suspense fallback={null}>
           <Terrain />
-          <Water />
+          <Stream />
+          <MountainRange />
           <ProceduralTrees />
+          <GroundCover />
+          <Rocks />
           <PetalParticles />
           <CaveEntrance />
           <CaveRocks />
@@ -309,7 +313,7 @@ export default function PeachForestScene() {
       {/* HUD */}
       <div className="absolute top-4 left-1/2 -translate-x-1/2 pointer-events-none z-10">
         <p className="text-sm opacity-50" style={{ color: '#d4c5a9', letterSpacing: '0.15em' }}>
-          🌸 桃花林 · 春
+          🌸 桃花林 · 夹岸数百步
         </p>
       </div>
 
