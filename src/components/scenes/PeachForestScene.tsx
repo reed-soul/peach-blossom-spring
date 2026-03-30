@@ -12,7 +12,7 @@ import { useAudio } from '../../engine/AudioManager'
 import { advanceScene } from '../../engine/SceneManager'
 import * as THREE from 'three'
 
-function SkyDome() {
+export function SkyDome() {
   return (
     <mesh scale={[-1, 1, 1]}>
       <sphereGeometry args={[200, 32, 32]} />
@@ -44,7 +44,7 @@ function SkyDome() {
   )
 }
 
-function GodRay({ position, target }: { position: [number, number, number]; target: [number, number, number] }) {
+export function GodRay({ position, target }: { position: [number, number, number]; target: [number, number, number] }) {
   const dir = new THREE.Vector3(...target).sub(new THREE.Vector3(...position)).normalize()
   const length = 15
   const end = new THREE.Vector3(...position).add(dir.clone().multiplyScalar(length))
@@ -65,7 +65,7 @@ function GodRay({ position, target }: { position: [number, number, number]; targ
   )
 }
 
-function CaveEntrance() {
+export function CaveEntrance({ onTrigger }: { onTrigger?: () => void }) {
   const triggerRef = useRef(false)
   const [showPrompt, setShowPrompt] = useState(false)
   const { camera } = useThree()
@@ -75,9 +75,10 @@ function CaveEntrance() {
       triggerRef.current = false
       setShowPrompt(false)
       document.exitPointerLock?.()
-      advanceScene()
+      if (onTrigger) onTrigger()
+      else advanceScene()
     }
-  }, [])
+  }, [onTrigger])
 
   useEffect(() => {
     window.addEventListener('keydown', handleKeyDown)
@@ -131,7 +132,7 @@ function CaveEntrance() {
   )
 }
 
-function CaveRocks() {
+export function CaveRocks() {
   return (
     <group position={[0, 0, -50]}>
       {Array.from({ length: 12 }).map((_, i) => {

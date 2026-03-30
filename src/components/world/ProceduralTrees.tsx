@@ -1,5 +1,4 @@
-import { useRef, useMemo } from 'react'
-import { useFrame } from '@react-three/fiber'
+import { useRef, useMemo, useEffect } from 'react'
 import * as THREE from 'three'
 import { createNoise2D } from 'simplex-noise'
 
@@ -17,8 +16,7 @@ export function ProceduralTrees() {
       const x = (Math.random() - 0.5) * 120
       const z = (Math.random() - 0.5) * 120
       const density = noise2D(x * 0.03, z * 0.03)
-      if (density < -0.2) continue // Skip low-density areas
-      // Don't place trees right on spawn
+      if (density < -0.2) continue
       if (Math.abs(x) < 3 && Math.abs(z) < 3) continue
       result.push({
         x,
@@ -31,32 +29,32 @@ export function ProceduralTrees() {
     return result
   }, [])
 
-  useMemo(() => {
-    if (!trunkRef.current || !canopyRef.current) return
-    const dummy = new THREE.Object3D()
+  // Use useEffect so refs are assigned before we access them
+  useEffect(() => {
+    const trunk = trunkRef.current
+    const canopy = canopyRef.current
+    if (!trunk || !canopy) return
 
+    const dummy = new THREE.Object3D()
     trees.forEach((t, i) => {
-      // Trunk
       dummy.position.set(t.x, t.height * 0.5, t.z)
       dummy.scale.set(0.3, t.height, 0.3)
       dummy.rotation.set(0, t.rot, 0)
       dummy.updateMatrix()
-      trunkRef.current!.setMatrixAt(i, dummy.matrix)
+      trunk.setMatrixAt(i, dummy.matrix)
 
-      // Canopy - cluster of spheres
       dummy.position.set(t.x, t.height + t.canopyR * 0.5, t.z)
       dummy.scale.set(t.canopyR, t.canopyR * 0.8, t.canopyR)
       dummy.updateMatrix()
-      canopyRef.current!.setMatrixAt(i, dummy.matrix)
+      canopy.setMatrixAt(i, dummy.matrix)
 
-      // Color variation
       const color = new THREE.Color(CANOPY_COLORS[i % CANOPY_COLORS.length])
-      canopyRef.current!.setColorAt(i, color)
+      canopy.setColorAt(i, color)
     })
 
-    trunkRef.current.instanceMatrix.needsUpdate = true
-    canopyRef.current.instanceMatrix.needsUpdate = true
-    if (canopyRef.current.instanceColor) canopyRef.current.instanceColor.needsUpdate = true
+    trunk.instanceMatrix.needsUpdate = true
+    canopy.instanceMatrix.needsUpdate = true
+    if (canopy.instanceColor) canopy.instanceColor.needsUpdate = true
   }, [trees])
 
   return (
