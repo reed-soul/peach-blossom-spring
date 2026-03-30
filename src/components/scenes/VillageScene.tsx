@@ -4,6 +4,7 @@ import { Html } from '@react-three/drei'
 import * as THREE from 'three'
 import { PlayerController } from '../../engine/PlayerController'
 import { DayNightCycle } from '../world/DayNightCycle'
+import { InkWashEffect } from '../world/InkWashEffect'
 import { useAudio } from '../../engine/AudioManager'
 import { useGameStore } from '../../store/useGameStore'
 import { advanceScene } from '../../engine/SceneManager'
@@ -314,6 +315,9 @@ export default function VillageScene() {
         })}
 
         <PlayerController />
+
+        {/* Ink wash post-processing */}
+        <InkWashEffect inkIntensity={1.0} edgeStrength={1.0} paperRoughness={0.25} />
       </Canvas>
 
       {/* Dialogue overlay */}

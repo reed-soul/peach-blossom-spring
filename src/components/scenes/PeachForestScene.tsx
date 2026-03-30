@@ -7,6 +7,7 @@ import { PetalParticles } from '../world/PetalParticles'
 import { Terrain } from '../world/Terrain'
 import { Water } from '../world/Water'
 import { DayNightCycle } from '../world/DayNightCycle'
+import { InkWashEffect } from '../world/InkWashEffect'
 import { useAudio } from '../../engine/AudioManager'
 import { advanceScene } from '../../engine/SceneManager'
 import * as THREE from 'three'
@@ -249,6 +250,7 @@ export default function PeachForestScene() {
 
         <PlayerController />
         <Compass />
+        <InkWashEffect inkIntensity={1.3} edgeStrength={1.2} paperRoughness={0.35} />
       </Canvas>
 
       {/* HUD */}
