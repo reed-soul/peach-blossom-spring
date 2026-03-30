@@ -1,6 +1,7 @@
 import { useRef, useState, useEffect, useCallback } from 'react'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import { Html } from '@react-three/drei'
+import { Physics, RigidBody, CuboidCollider } from '@react-three/rapier'
 import * as THREE from 'three'
 import { PlayerController, MobileControls } from '../../engine/PlayerController'
 import { DayNightCycle } from '../world/DayNightCycle'
@@ -257,6 +258,7 @@ export default function VillageScene() {
         shadows
         camera={{ position: [0, 1.5, 15], fov: 70, near: 0.1, far: 300 }}
       >
+        <Physics gravity={[0, -9.81, 0]}>
         <color attach="background" args={['#87CEEB']} />
         <fog attach="fog" args={['#c5d8e8', 20, 100]} />
 
@@ -267,6 +269,28 @@ export default function VillageScene() {
           <planeGeometry args={[200, 200]} />
           <meshStandardMaterial color={0x4a7c59} roughness={0.95} />
         </mesh>
+
+        {/* Ground collider */}
+        <RigidBody type="fixed" friction={0.8}>
+          <CuboidCollider args={[100, 0.05, 100]} position={[0, -0.05, 0]} />
+        </RigidBody>
+
+        {/* House colliders */}
+        {[
+          [-10, 1.5, -5], [8, 1.5, -8], [-5, 1.5, -20], [12, 1.5, -15], [0, 1.5, -25],
+        ].map((pos, i) => (
+          <RigidBody key={`hc${i}`} type="fixed" position={pos as any}>
+            <CuboidCollider args={[2.5, 2, 2]} />
+          </RigidBody>
+        ))}
+
+        {/* Boundary walls */}
+        <RigidBody type="fixed">
+          <CuboidCollider args={[100, 10, 0.5]} position={[0, 5, -65]} />
+          <CuboidCollider args={[100, 10, 0.5]} position={[0, 5, 65]} />
+          <CuboidCollider args={[0.5, 10, 100]} position={[-65, 5, 0]} />
+          <CuboidCollider args={[0.5, 10, 100]} position={[65, 5, 0]} />
+        </RigidBody>
 
         {/* Village houses */}
         <ChineseHouse position={[-10, 0, -5]} rotation={0.3} />
@@ -299,7 +323,7 @@ export default function VillageScene() {
         {/* Peach trees around village */}
         {Array.from({ length: 30 }).map((_, i) => {
           const angle = (i / 30) * Math.PI * 2
-          const r = 25 + Math.random() * 15
+          const r = 25 + Math.sin(i * 4.7) * 7 + 7
           return (
             <group key={i} position={[Math.cos(angle) * r, 0, Math.sin(angle) * r - 10]}>
               <mesh position={[0, 2.5, 0]} castShadow>
@@ -314,10 +338,11 @@ export default function VillageScene() {
           )
         })}
 
-        <PlayerController />
+        <PlayerController position={[0, 3, 15]} />
 
         {/* Ink wash post-processing */}
         <InkWashEffect inkIntensity={1.0} edgeStrength={1.0} paperRoughness={0.25} />
+        </Physics>
       </Canvas>
 
       {/* Dialogue overlay */}

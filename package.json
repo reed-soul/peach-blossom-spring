@@ -12,6 +12,7 @@
     "@react-three/drei": "^9.122.0",
     "@react-three/fiber": "^8.17.0",
     "@react-three/postprocessing": "^2.16.0",
+    "@react-three/rapier": "^2.2.0",
     "@react-three/xr": "^6.6.29",
     "@vitejs/plugin-react": "^4.7.0",
     "inkjs": "^2.2.1",

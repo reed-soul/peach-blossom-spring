@@ -1,5 +1,6 @@
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import { Html } from '@react-three/drei'
+import { Physics, RigidBody, CuboidCollider } from '@react-three/rapier'
 import { Suspense, useRef, useState, useEffect, useCallback } from 'react'
 import { PlayerController, MobileControls } from '../../engine/PlayerController'
 import { ProceduralTrees } from '../world/ProceduralTrees'
@@ -133,22 +134,55 @@ export function CaveEntrance({ onTrigger }: { onTrigger?: () => void }) {
 }
 
 export function CaveRocks() {
+  const rockData = useRef(
+    Array.from({ length: 12 }).map((_, i) => {
+      const angle = (i / 12) * Math.PI * 2
+      const r = 8 + Math.sin(i * 7.3) * 3 + 2
+      const scale = 2 + Math.sin(i * 3.7) * 1.5
+      return {
+        x: Math.cos(angle) * r,
+        y: Math.sin(i * 5.1) * 2,
+        z: Math.sin(angle) * r - 3,
+        scale,
+      }
+    }),
+  )
+
   return (
     <group position={[0, 0, -50]}>
-      {Array.from({ length: 12 }).map((_, i) => {
-        const angle = (i / 12) * Math.PI * 2
-        const r = 8 + Math.random() * 4
-        return (
-          <mesh
-            key={i}
-            position={[Math.cos(angle) * r, Math.random() * 3, Math.sin(angle) * r - 3]}
-            castShadow
-          >
-            <dodecahedronGeometry args={[2 + Math.random() * 2, 0]} />
-            <meshStandardMaterial color={0x4e342e} roughness={1} />
-          </mesh>
-        )
-      })}
+      {rockData.current.map((rock, i) => (
+        <mesh key={i} position={[rock.x, rock.y, rock.z]} castShadow>
+          <dodecahedronGeometry args={[rock.scale, 0]} />
+          <meshStandardMaterial color={0x4e342e} roughness={1} />
+        </mesh>
+      ))}
+    </group>
+  )
+}
+
+// Physics colliders for cave rocks (matching CaveRocks positions)
+function CaveRockColliders() {
+  const rockData = useRef(
+    Array.from({ length: 12 }).map((_, i) => {
+      const angle = (i / 12) * Math.PI * 2
+      const r = 8 + Math.sin(i * 7.3) * 3 + 2
+      const scale = 2 + Math.sin(i * 3.7) * 1.5
+      return {
+        x: Math.cos(angle) * r,
+        y: Math.sin(i * 5.1) * 2,
+        z: Math.sin(angle) * r - 3,
+        scale,
+      }
+    }),
+  )
+
+  return (
+    <group position={[0, 0, -50]}>
+      {rockData.current.map((rock, i) => (
+        <RigidBody key={i} type="fixed" position={[rock.x, rock.y, rock.z]}>
+          <CuboidCollider args={[rock.scale * 0.7, rock.scale * 0.7, rock.scale * 0.7]} />
+        </RigidBody>
+      ))}
     </group>
   )
 }
@@ -228,6 +262,7 @@ export default function PeachForestScene() {
         camera={{ position: [0, 1.5, 10], fov: 70, near: 0.1, far: 500 }}
         gl={{ antialias: true, alpha: false }}
       >
+        <Physics gravity={[0, -9.81, 0]} debug={false}>
         <fog attach="fog" args={['#3d1f2f', 10, 60]} />
 
         {/* Lighting - managed by DayNightCycle */}
@@ -240,6 +275,22 @@ export default function PeachForestScene() {
 
         <SkyDome />
 
+        {/* Ground collider */}
+        <RigidBody type="fixed" friction={0.8}>
+          <CuboidCollider args={[100, 0.05, 100]} position={[0, -0.05, 0]} />
+        </RigidBody>
+
+        {/* Boundary walls (invisible) */}
+        <RigidBody type="fixed">
+          <CuboidCollider args={[100, 10, 0.5]} position={[0, 5, -65]} />
+          <CuboidCollider args={[100, 10, 0.5]} position={[0, 5, 65]} />
+          <CuboidCollider args={[0.5, 10, 100]} position={[-65, 5, 0]} />
+          <CuboidCollider args={[0.5, 10, 100]} position={[65, 5, 0]} />
+        </RigidBody>
+
+        {/* Cave rock colliders */}
+        <CaveRockColliders />
+
         <Suspense fallback={null}>
           <Terrain />
           <Water />
@@ -249,7 +300,8 @@ export default function PeachForestScene() {
           <CaveRocks />
         </Suspense>
 
-        <PlayerController />
+        <PlayerController position={[0, 3, 10]} />
+        </Physics>
         <Compass />
         <InkWashEffect inkIntensity={1.3} edgeStrength={1.2} paperRoughness={0.35} />
       </Canvas>
