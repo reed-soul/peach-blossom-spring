@@ -1,11 +1,13 @@
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
-import { Html, Sky } from '@react-three/drei'
+import { Html } from '@react-three/drei'
 import { Suspense, useRef, useState, useEffect, useCallback } from 'react'
 import { PlayerController } from '../../engine/PlayerController'
 import { ProceduralTrees } from '../world/ProceduralTrees'
 import { PetalParticles } from '../world/PetalParticles'
 import { Terrain } from '../world/Terrain'
 import { Water } from '../world/Water'
+import { DayNightCycle } from '../world/DayNightCycle'
+import { useAudio } from '../../engine/AudioManager'
 import { advanceScene } from '../../engine/SceneManager'
 import * as THREE from 'three'
 
@@ -197,12 +199,25 @@ function CompassArrow({ camera }: { camera: THREE.Camera }) {
 
 export default function PeachForestScene() {
   const [locked, setLocked] = useState(false)
+  const { startAmbient, stopAll } = useAudio()
 
   useEffect(() => {
     const onChange = () => setLocked(!!document.pointerLockElement)
     document.addEventListener('pointerlockchange', onChange)
-    return () => document.removeEventListener('pointerlockchange', onChange)
-  }, [])
+    return () => {
+      document.removeEventListener('pointerlockchange', onChange)
+      stopAll()
+    }
+  }, [stopAll])
+
+  // Start ambient audio on first click
+  const audioStarted = useRef(false)
+  const handleCanvasClick = useCallback(() => {
+    if (!audioStarted.current) {
+      audioStarted.current = true
+      startAmbient('forest')
+    }
+  }, [startAmbient])
 
   return (
     <div className="w-full h-full relative">
@@ -213,22 +228,8 @@ export default function PeachForestScene() {
       >
         <fog attach="fog" args={['#3d1f2f', 10, 60]} />
 
-        {/* Lighting */}
-        <ambientLight intensity={0.35} color={0xffd4a6} />
-        <directionalLight
-          position={[30, 40, 20]}
-          intensity={1.2}
-          color={0xfff0e0}
-          castShadow
-          shadow-mapSize-width={2048}
-          shadow-mapSize-height={2048}
-          shadow-camera-far={100}
-          shadow-camera-left={-60}
-          shadow-camera-right={60}
-          shadow-camera-top={60}
-          shadow-camera-bottom={-60}
-        />
-        <hemisphereLight args={[0xffe4c4, 0x2d5a27, 0.3]} />
+        {/* Lighting - managed by DayNightCycle */}
+        <DayNightCycle speed={0.015} />
 
         {/* God rays */}
         <GodRay position={[10, 20, -20]} target={[10, 0, -20]} />
@@ -256,6 +257,14 @@ export default function PeachForestScene() {
           🌸 桃花林 · 春
         </p>
       </div>
+
+      {!audioStarted.current && (
+        <div className="absolute top-12 left-1/2 -translate-x-1/2 pointer-events-none z-10">
+          <p className="text-xs opacity-30" style={{ color: '#d4c5a9' }}>
+            🔊 点击画面开启音效
+          </p>
+        </div>
+      )}
 
       {!locked && (
         <div className="absolute inset-0 flex items-center justify-center z-20 pointer-events-none">

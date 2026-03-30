@@ -3,6 +3,8 @@ import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import { Html } from '@react-three/drei'
 import * as THREE from 'three'
 import { PlayerController } from '../../engine/PlayerController'
+import { DayNightCycle } from '../world/DayNightCycle'
+import { useAudio } from '../../engine/AudioManager'
 import { useGameStore } from '../../store/useGameStore'
 import { advanceScene } from '../../engine/SceneManager'
 
@@ -225,6 +227,16 @@ export default function VillageScene() {
   const visitedNPCs = Object.keys(dialogues)
   const visitNPC = useGameStore((s) => s.visitNPC)
   const [showEndingChoice, setShowEndingChoice] = useState(false)
+  const { startAmbient, stopAll } = useAudio()
+  const audioStarted = useRef(false)
+
+  useEffect(() => {
+    if (!audioStarted.current) {
+      audioStarted.current = true
+      startAmbient('village')
+    }
+    return () => stopAll()
+  }, [startAmbient, stopAll])
 
   useEffect(() => {
     visitedNPCs.forEach(name => visitNPC(name))
@@ -247,21 +259,7 @@ export default function VillageScene() {
         <color attach="background" args={['#87CEEB']} />
         <fog attach="fog" args={['#c5d8e8', 20, 100]} />
 
-        <ambientLight intensity={0.5} color={0xfff5e6} />
-        <directionalLight
-          position={[20, 30, 10]}
-          intensity={1}
-          color={0xfff0d0}
-          castShadow
-          shadow-mapSize-width={2048}
-          shadow-mapSize-height={2048}
-          shadow-camera-far={80}
-          shadow-camera-left={-40}
-          shadow-camera-right={40}
-          shadow-camera-top={40}
-          shadow-camera-bottom={-40}
-        />
-        <hemisphereLight args={[0xffe4c4, 0x3a5f3a, 0.3]} />
+        <DayNightCycle speed={0.015} />
 
         {/* Ground */}
         <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, 0]} receiveShadow>
