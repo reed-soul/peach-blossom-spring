@@ -1,7 +1,7 @@
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import { Html } from '@react-three/drei'
 import { Suspense, useRef, useState, useEffect, useCallback } from 'react'
-import { PlayerController } from '../../engine/PlayerController'
+import { PlayerController, MobileControls } from '../../engine/PlayerController'
 import { ProceduralTrees } from '../world/ProceduralTrees'
 import { PetalParticles } from '../world/PetalParticles'
 import { Terrain } from '../world/Terrain'
@@ -287,6 +287,8 @@ export default function PeachForestScene() {
           探索桃花林，寻找山洞入口…
         </p>
       </div>
+
+      <MobileControls />
     </div>
   )
 }

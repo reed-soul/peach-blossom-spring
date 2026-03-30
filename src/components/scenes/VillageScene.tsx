@@ -2,7 +2,7 @@ import { useRef, useState, useEffect, useCallback } from 'react'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import { Html } from '@react-three/drei'
 import * as THREE from 'three'
-import { PlayerController } from '../../engine/PlayerController'
+import { PlayerController, MobileControls } from '../../engine/PlayerController'
 import { DayNightCycle } from '../world/DayNightCycle'
 import { InkWashEffect } from '../world/InkWashEffect'
 import { useAudio } from '../../engine/AudioManager'
@@ -400,9 +400,11 @@ export default function VillageScene() {
 
       <div className="absolute top-4 left-1/2 -translate-x-1/2 pointer-events-none z-10">
         <p className="text-sm opacity-40" style={{ color: '#333', letterSpacing: '0.15em' }}>
-          WASD 移动 · 按 E 与村民对话
+          {'ontouchstart' in window ? '摇杆移动 · 按互动与村民对话' : 'WASD 移动 · 按 E 与村民对话'}
         </p>
       </div>
+
+      <MobileControls />
     </div>
   )
 }
