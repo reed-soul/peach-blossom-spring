@@ -1,9 +1,9 @@
-import { useState, useEffect } from 'react'
-import { advanceScene } from '../../engine/SceneManager'
-
-const TEXT = `晋太元中，武陵人捕鱼为业。缘溪行，忘路之远近。忽逢桃花林，夹岸数百步，中无杂树，芳草鲜美，落英缤纷。渔人甚异之，复前行，欲穷其林。`
+import { useState, useEffect, useMemo } from 'react'
+import { advanceScene } from '../../engine/navigation'
+import { getOpeningText } from '../../narrative/openingStory'
 
 export default function OpeningScene() {
+  const text = useMemo(() => getOpeningText(), [])
   const [displayed, setDisplayed] = useState('')
   const [started, setStarted] = useState(false)
 
@@ -11,20 +11,18 @@ export default function OpeningScene() {
     if (!started) return
     let i = 0
     const timer = setInterval(() => {
-      if (i < TEXT.length) {
-        setDisplayed(TEXT.slice(0, i + 1))
+      if (i < text.length) {
+        setDisplayed(text.slice(0, i + 1))
         i++
       } else {
         clearInterval(timer)
-        // Auto advance after 2 seconds
         setTimeout(advanceScene, 2000)
       }
     }, 120)
     return () => clearInterval(timer)
-  }, [started])
+  }, [started, text])
 
   useEffect(() => {
-    // Auto start after 1 second
     const t = setTimeout(() => setStarted(true), 1000)
     return () => clearTimeout(t)
   }, [])
@@ -36,14 +34,13 @@ export default function OpeningScene() {
         background: 'radial-gradient(ellipse at 50% 40%, #1a1520 0%, #0d0a0f 60%, #050305 100%)',
       }}
       onClick={() => {
-        if (displayed.length < TEXT.length) {
-          setDisplayed(TEXT)
+        if (displayed.length < text.length) {
+          setDisplayed(text)
         } else {
           advanceScene()
         }
       }}
     >
-      {/* Mist particles */}
       {Array.from({ length: 30 }).map((_, i) => (
         <div
           key={i}
@@ -61,7 +58,6 @@ export default function OpeningScene() {
         />
       ))}
 
-      {/* Text */}
       <div className="max-w-2xl px-8 z-10">
         <p
           className="text-2xl md:text-3xl leading-relaxed"
@@ -73,11 +69,11 @@ export default function OpeningScene() {
           }}
         >
           {displayed}
-          {displayed.length < TEXT.length && (
+          {displayed.length < text.length && (
             <span className="inline-block w-0.5 h-6 ml-1 animate-pulse" style={{ backgroundColor: '#d4c5a9' }} />
           )}
         </p>
-        {displayed.length >= TEXT.length && (
+        {displayed.length >= text.length && (
           <p className="text-center mt-8 text-sm opacity-40" style={{ color: '#8b7355' }}>
             点击继续 →
           </p>

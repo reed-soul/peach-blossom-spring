@@ -59,11 +59,12 @@ export function DayNightCycle({ speed = 0.02 }: { speed?: number }) {
     }
   }
 
+  const fogRef = useRef<THREE.Fog | null>(null)
+
   useFrame((_, delta) => {
     timeRef.current = (timeRef.current + delta * speed) % 1
     const cfg = getTimeConfig(timeRef.current)
 
-    // Update lights
     if (dirLightRef.current) {
       dirLightRef.current.position.set(...cfg.sunPos)
       dirLightRef.current.color.copy(cfg.sunColor)
@@ -74,11 +75,17 @@ export function DayNightCycle({ speed = 0.02 }: { speed?: number }) {
       ambLightRef.current.intensity = cfg.ambI
     }
 
-    // Update fog
-    scene.fog = new THREE.Fog(cfg.fog, 10, 60)
+    if (!fogRef.current) {
+      fogRef.current = new THREE.Fog(cfg.fog, 10, 60)
+      scene.fog = fogRef.current
+    } else {
+      fogRef.current.color.copy(cfg.fog)
+    }
 
-    // Update background
-    ;(scene.background as THREE.Color)?.copy(cfg.sky)
+    if (!scene.background) {
+      scene.background = new THREE.Color()
+    }
+    ;(scene.background as THREE.Color).copy(cfg.sky)
   })
 
   return (
