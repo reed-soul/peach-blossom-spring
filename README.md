@@ -21,6 +21,14 @@
 
 Shift 可奔跑；空格可跳跃（桃花林/村落场景）。
 
+## 在线体验
+
+合并到 `master` 后，GitHub Actions 会自动部署到：
+
+https://reed-soul.github.io/peach-blossom-spring/
+
+（需在仓库 Settings → Pages 中选择 **GitHub Actions** 作为来源。）
+
 ## 本地开发
 
 ```bash
@@ -35,6 +43,8 @@ npm test         # 单元测试
 ```bash
 npm run narrative:build
 ```
+
+会编译 `content/narrative/` 下全部 `.ink` 文件到 `src/narrative/*.json`。
 
 ## 技术栈
 
@@ -54,7 +64,7 @@ src/
   engine/              # 场景管理、玩家控制、音频、导航
   narrative/           # ink 叙事运行时
   store/               # 全局状态
-content/narrative/     # ink 源文件
+content/narrative/     # ink 源文件（opening / village / epilogue / endings）
 ```
 
 ## 许可证

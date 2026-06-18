@@ -151,6 +151,11 @@ function stopLoop(name: string) {
     delete activeSources[name]
   }
 }
+import { playFootstep as playFootstepSound } from './footstep'
+
+export function playFootstep() {
+  playFootstepSound()
+}
 
 export function useAudio() {
   const initialized = useRef(false)
@@ -181,18 +186,8 @@ export function useAudio() {
   }, [])
 
   const playStep = useCallback(() => {
-    init()
-    const c = getCtx()
-    const buf = buffers.footstep
-    if (!buf || !masterGain) return
-    const source = c.createBufferSource()
-    source.buffer = buf
-    const gain = c.createGain()
-    gain.gain.value = 0.15
-    source.connect(gain)
-    gain.connect(masterGain)
-    source.start()
-  }, [init])
+    playFootstepSound()
+  }, [])
 
   useEffect(() => {
     return () => {

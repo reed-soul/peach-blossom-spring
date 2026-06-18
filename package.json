@@ -1,7 +1,7 @@
 {
   "name": "peach-blossom-spring",
   "private": true,
-  "version": "0.2.0",
+  "version": "0.3.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -9,7 +9,7 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
-    "narrative:build": "inkjs-compiler content/narrative/village.ink -o src/narrative/village.json"
+    "narrative:build": "node scripts/build-narrative.mjs"
   },
   "dependencies": {
     "@react-three/drei": "^9.122.0",

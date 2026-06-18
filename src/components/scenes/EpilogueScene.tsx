@@ -1,23 +1,20 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import { advanceScene } from '../../engine/navigation'
-
-const LINES = [
-  '便扶向路，处处志之。',
-  '及郡下，诣太守，说如此。',
-  '太守即遣人随其往，寻向所志，遂迷，不复得路。',
-]
+import { getEpilogueLines, getEpilogueClosing } from '../../narrative/epilogueStory'
 
 export default function EpilogueScene() {
+  const lines = useMemo(() => getEpilogueLines(), [])
+  const closing = useMemo(() => getEpilogueClosing(), [])
   const [lineIndex, setLineIndex] = useState(0)
   const [displayed, setDisplayed] = useState('')
 
   useEffect(() => {
-    if (lineIndex >= LINES.length) {
+    if (lineIndex >= lines.length) {
       const t = setTimeout(advanceScene, 2500)
       return () => clearTimeout(t)
     }
 
-    const line = LINES[lineIndex]
+    const line = lines[lineIndex]
     let i = 0
     setDisplayed('')
     const timer = setInterval(() => {
@@ -35,12 +32,12 @@ export default function EpilogueScene() {
       clearInterval(timer)
       clearTimeout(pause)
     }
-  }, [lineIndex])
+  }, [lineIndex, lines])
 
   const skip = () => {
-    if (lineIndex < LINES.length - 1) {
-      setLineIndex(LINES.length)
-      setDisplayed(LINES[LINES.length - 1])
+    if (lineIndex < lines.length - 1) {
+      setLineIndex(lines.length)
+      setDisplayed(lines[lines.length - 1])
     } else {
       advanceScene()
     }
@@ -62,13 +59,13 @@ export default function EpilogueScene() {
         style={{ color: '#d4c5a9', letterSpacing: '0.08em', lineHeight: '2.2' }}
       >
         {displayed}
-        {lineIndex < LINES.length && displayed.length < LINES[lineIndex]?.length && (
+        {lineIndex < lines.length && displayed.length < lines[lineIndex]?.length && (
           <span className="inline-block w-0.5 h-6 ml-1 animate-pulse" style={{ backgroundColor: '#d4c5a9' }} />
         )}
       </p>
-      {lineIndex >= LINES.length && (
+      {lineIndex >= lines.length && (
         <p className="mt-8 text-sm opacity-30" style={{ color: '#5d4037' }}>
-          桃花源，终究只存在于记忆之中…
+          {closing}
         </p>
       )}
       <p className="absolute bottom-8 text-xs opacity-25" style={{ color: '#8b7355' }}>
