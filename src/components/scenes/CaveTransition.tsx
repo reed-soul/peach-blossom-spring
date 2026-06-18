@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { advanceScene } from '../../engine/SceneManager'
+import { advanceScene } from '../../engine/navigation'
 
 export default function CaveTransition() {
   const [phase, setPhase] = useState(0) // 0: darkening, 1: tunnel, 2: light, 3: transition

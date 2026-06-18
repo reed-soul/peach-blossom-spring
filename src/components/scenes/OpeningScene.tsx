@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { advanceScene } from '../../engine/SceneManager'
+import { advanceScene } from '../../engine/navigation'
 
 const TEXT = `晋太元中，武陵人捕鱼为业。缘溪行，忘路之远近。忽逢桃花林，夹岸数百步，中无杂树，芳草鲜美，落英缤纷。渔人甚异之，复前行，欲穷其林。`
 

@@ -1,73 +1,62 @@
-# React + TypeScript + Vite
+# 桃花源记 — 互动沉浸式 3D 体验
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+基于 WebGL 技术，以第一人称视角重走陶渊明《桃花源记》：漫游桃花林、穿越山洞、探访世外桃源，并在「留」与「归」之间做出选择。
 
-Currently, two official plugins are available:
+## 体验流程
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+1. **主菜单** — 进入体验
+2. **开场** — 原文节选打字呈现
+3. **桃花林** — 自由探索，寻找山洞（WASD + 鼠标，按 E 进入）
+4. **穿洞** — 过渡动画「豁然开朗」
+5. **桃源村** — 与村民对话，了解此地故事
+6. **尾声**（回归路线）— 「遂迷，不复得路」
+7. **结局** — 根据选择呈现不同收束
 
-## React Compiler
+## 操作
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+| 平台 | 移动 | 视角 | 互动 |
+|------|------|------|------|
+| 桌面 | WASD / 方向键 | 鼠标（点击锁定） | E |
+| 移动 | 左下虚拟摇杆 | 右侧滑动 | 互动按钮 |
 
-## Expanding the ESLint configuration
+Shift 可奔跑；空格可跳跃（桃花林/村落场景）。
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+## 本地开发
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+npm install
+npm run dev      # http://localhost:5173
+npm run build    # 生产构建
+npm test         # 单元测试
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+构建叙事脚本（修改 `content/narrative/*.ink` 后）：
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+npm run narrative:build
 ```
+
+## 技术栈
+
+- **React 18** + **TypeScript** + **Vite**
+- **Three.js** / **React Three Fiber** — 3D 渲染
+- **Rapier** — 物理与碰撞
+- **inkjs** — 分支叙事脚本
+- **Zustand** — 游戏状态
+- 自定义水墨后处理 shader、程序化地形与桃花树
+
+## 项目结构
+
+```
+src/
+  components/scenes/   # 各场景（菜单、桃花林、村落…）
+  components/world/    # 共享 3D 世界元素
+  engine/              # 场景管理、玩家控制、音频、导航
+  narrative/           # ink 叙事运行时
+  store/               # 全局状态
+content/narrative/     # ink 源文件
+```
+
+## 许可证
+
+Private — 教育/展示用途。

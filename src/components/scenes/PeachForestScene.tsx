@@ -11,7 +11,7 @@ import { MountainRange } from '../world/MountainRange'
 import { DayNightCycle } from '../world/DayNightCycle'
 import { InkWashEffect } from '../world/InkWashEffect'
 import { useAudio } from '../../engine/AudioManager'
-import { advanceScene } from '../../engine/SceneManager'
+import { advanceScene } from '../../engine/navigation'
 import * as THREE from 'three'
 
 export function SkyDome() {
@@ -68,14 +68,12 @@ export function GodRay({ position, target }: { position: [number, number, number
 }
 
 export function CaveEntrance({ onTrigger }: { onTrigger?: () => void }) {
-  const triggerRef = useRef(false)
+  const inRangeRef = useRef(false)
   const [showPrompt, setShowPrompt] = useState(false)
   const { camera } = useThree()
 
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
-    if (e.code === 'KeyE' && triggerRef.current) {
-      triggerRef.current = false
-      setShowPrompt(false)
+    if (e.code === 'KeyE' && inRangeRef.current) {
       document.exitPointerLock?.()
       if (onTrigger) onTrigger()
       else advanceScene()
@@ -90,10 +88,8 @@ export function CaveEntrance({ onTrigger }: { onTrigger?: () => void }) {
   useFrame(() => {
     const cavePos = new THREE.Vector3(0, 0, -50)
     const dist = camera.position.distanceTo(cavePos)
-    if (dist < 12 && !triggerRef.current) {
-      triggerRef.current = true
-    }
-    setShowPrompt(dist < 12)
+    inRangeRef.current = dist < 12
+    setShowPrompt(inRangeRef.current)
   })
 
   return (

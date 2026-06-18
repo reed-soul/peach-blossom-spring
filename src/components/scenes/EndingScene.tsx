@@ -1,8 +1,8 @@
 import { useGameStore } from '../../store/useGameStore'
-import { advanceScene } from '../../engine/SceneManager'
+import { goToMenu } from '../../engine/navigation'
 
 export default function EndingScene() {
-  const { storyState, reset } = useGameStore()
+  const { storyState } = useGameStore()
   const isReturn = storyState.currentEnding === 'return'
 
   return (
@@ -35,13 +35,13 @@ export default function EndingScene() {
       {isReturn ? (
         <div className="text-center max-w-lg px-8 z-10">
           <h2 className="text-4xl mb-8" style={{ color: '#8b7355', letterSpacing: '0.15em' }}>
-            既出，得其船
+            后遂无问津者
           </h2>
           <p className="text-xl leading-relaxed mb-6" style={{ color: '#d4c5a9', lineHeight: '2.2' }}>
-            便扶向路，处处志之。及郡下，诣太守，说如此。太守即遣人随其往，寻向所志，遂迷，不复得路。
+            南阳刘子骥，高尚士也，闻之，欣然规往。未果，寻病终。
           </p>
           <p className="text-lg leading-relaxed mb-12" style={{ color: '#8b7355', lineHeight: '2', opacity: 0.6 }}>
-            南阳刘子骥，高尚士也，闻之，欣然规往。未果，寻病终。后遂无问津者。
+            你回到了尘世，却再也找不到来时的路。桃源如梦，梦醒无痕。
           </p>
           <p className="text-sm opacity-30" style={{ color: '#5d4037' }}>
             桃花源，终究只存在于记忆之中。
@@ -66,7 +66,7 @@ export default function EndingScene() {
       )}
 
       <button
-        onClick={() => { reset(); advanceScene() }}
+        onClick={goToMenu}
         className="absolute bottom-8 z-10 px-8 py-3 rounded-sm border cursor-pointer transition-all hover:scale-105"
         style={{ borderColor: '#5d4037', color: '#8b7355', backgroundColor: 'rgba(93, 64, 55, 0.1)' }}
       >

@@ -1,4 +1,4 @@
-import { advanceScene } from '../../engine/SceneManager'
+import { advanceScene } from '../../engine/navigation'
 
 export default function MainMenu() {
   return (
@@ -56,7 +56,7 @@ export default function MainMenu() {
       </button>
 
       <p className="absolute bottom-8 text-sm opacity-30 z-10" style={{ color: '#8b7355' }}>
-        基于 WebGPU · Three.js · React
+        基于 WebGL · Three.js · React
       </p>
 
       <style>{`
