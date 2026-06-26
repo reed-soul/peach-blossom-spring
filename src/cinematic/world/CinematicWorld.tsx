@@ -1,4 +1,6 @@
-import { Suspense } from 'react'
+import { Suspense, useEffect } from 'react'
+import { useThree } from '@react-three/fiber'
+import * as THREE from 'three'
 import { Terrain } from '../../components/world/Terrain'
 import { Stream } from '../../components/world/Stream'
 import { MountainRange } from '../../components/world/MountainRange'
@@ -8,7 +10,46 @@ import {
   Rocks,
 } from '../../components/world/ProceduralTrees'
 import { PetalParticles } from '../../components/world/PetalParticles'
-import { DayNightCycle } from '../../components/world/DayNightCycle'
+
+// 电影模式固定明亮的暖调光照（不走 DayNightCycle 的昼夜变化，保证全程氛围稳定）
+function BrightLighting() {
+  const { scene } = useThree()
+  useEffect(() => {
+    const prevFog = scene.fog
+    const prevBg = scene.background
+    scene.fog = new THREE.Fog(new THREE.Color('#e8d8c0'), 30, 130)
+    scene.background = new THREE.Color('#dfe6f0')
+    return () => {
+      scene.fog = prevFog
+      scene.background = prevBg
+    }
+  }, [scene])
+
+  return (
+    <>
+      {/* 主光：暖白阳光，高角度，柔和阴影 */}
+      <directionalLight
+        position={[25, 40, 15]}
+        intensity={1.6}
+        color={0xfff2dc}
+        castShadow
+        shadow-mapSize-width={2048}
+        shadow-mapSize-height={2048}
+        shadow-camera-left={-60}
+        shadow-camera-right={60}
+        shadow-camera-top={60}
+        shadow-camera-bottom={-60}
+        shadow-bias={-0.0005}
+      />
+      {/* 天光：明亮的天蓝半球光，照亮阴影区 */}
+      <hemisphereLight args={[0xbfd8ff, 0x6b5a3a, 0.85]} />
+      {/* 环境补光，避免纯黑 */}
+      <ambientLight intensity={0.35} />
+      {/* 逆光轮廓：让角色从背景中分离（仙侠感） */}
+      <directionalLight position={[-15, 20, -25]} intensity={0.5} color={0xffd8a0} />
+    </>
+  )
+}
 
 // 村庄房屋（与 VillageScene 风格一致，无交互）
 function VillageHouse({
@@ -109,8 +150,8 @@ function VillageArea() {
 export function CinematicWorld() {
   return (
     <Suspense fallback={null}>
-      {/* 氛围光照 + 日照缓慢变化（DayNightCycle 接管 ambient/directional/fog/background） */}
-      <DayNightCycle speed={0.003} />
+      {/* 固定明亮的暖调光照（电影模式全程氛围稳定） */}
+      <BrightLighting />
 
       {/* 地形/山/溪/树复用现有组件（围绕原点~z=-50 布置） */}
       <group position={[0, 0, 0]}>
