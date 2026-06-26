@@ -10,6 +10,7 @@ const scenes: Record<SceneName, React.LazyExoticComponent<React.ComponentType>> 
   cave: lazy(() => import('../components/scenes/CaveTransition')),
   village: lazy(() => import('../components/scenes/VillageScene')),
   ending: lazy(() => import('../components/scenes/EndingScene')),
+  cinematic: lazy(() => import('../cinematic/CinematicExperience')),
 }
 
 export function SceneManager() {

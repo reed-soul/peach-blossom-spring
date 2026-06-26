@@ -1,6 +1,8 @@
 import { advanceScene } from '../../engine/SceneManager'
+import { useGameStore } from '../../store/useGameStore'
 
 export default function MainMenu() {
+  const setScene = useGameStore((s) => s.setScene)
   return (
     <div className="w-full h-full flex flex-col items-center justify-center relative overflow-hidden"
       style={{
@@ -39,24 +41,45 @@ export default function MainMenu() {
         className="text-lg md:text-xl mb-12 z-10 opacity-60"
         style={{ color: '#8b7355', letterSpacing: '0.1em' }}
       >
-        互动沉浸式3D体验
+        互动沉浸式3D体验 · 电影讲解模式
       </p>
 
-      <button
-        onClick={advanceScene}
-        className="z-10 px-10 py-4 text-xl rounded-sm border transition-all duration-500 hover:scale-105 cursor-pointer"
-        style={{
-          color: '#d4c5a9',
-          borderColor: '#5D4037',
-          backgroundColor: 'rgba(93, 64, 55, 0.15)',
-          letterSpacing: '0.2em',
-        }}
-      >
-        进入桃花源
-      </button>
+      <div className="z-10 flex flex-col items-center gap-4">
+        {/* 主推：电影讲解（课堂演示用） */}
+        <button
+          onClick={() => setScene('cinematic')}
+          className="px-12 py-4 text-xl rounded-sm border transition-all duration-500 hover:scale-105 cursor-pointer"
+          style={{
+            color: '#e8dcc4',
+            borderColor: '#a67c3a',
+            backgroundColor: 'rgba(166, 124, 58, 0.2)',
+            letterSpacing: '0.2em',
+            boxShadow: '0 0 28px rgba(166,124,58,0.18)',
+          }}
+        >
+          ▶ 开启讲解（电影模式）
+        </button>
+        <p className="text-xs opacity-50" style={{ color: '#8b7355', letterSpacing: '0.1em' }}>
+          点击后自动播放，全程无需操作
+        </p>
+
+        {/* 次选：自由探索 */}
+        <button
+          onClick={advanceScene}
+          className="mt-2 px-10 py-3 text-base rounded-sm border transition-all duration-500 hover:scale-105 cursor-pointer"
+          style={{
+            color: '#d4c5a9',
+            borderColor: '#5D4037',
+            backgroundColor: 'rgba(93, 64, 55, 0.12)',
+            letterSpacing: '0.2em',
+          }}
+        >
+          进入桃花源（自由探索）
+        </button>
+      </div>
 
       <p className="absolute bottom-8 text-sm opacity-30 z-10" style={{ color: '#8b7355' }}>
-        基于 WebGPU · Three.js · React
+        基于 Web3D · Three.js · React
       </p>
 
       <style>{`
