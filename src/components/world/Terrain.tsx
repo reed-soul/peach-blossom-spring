@@ -106,5 +106,3 @@ export function Terrain() {
     </mesh>
   )
 }
-
-export { type Terrain }

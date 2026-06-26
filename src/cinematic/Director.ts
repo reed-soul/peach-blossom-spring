@@ -189,8 +189,10 @@ export class Director {
 
     // actor：从 prevActor 末态插值到 curActor
     const actorPos = lerpVec3(prevActor.pos, curActor.pos, t)
-    const actorFacing = lerp(prevActor.facing, curActor.facing, t)
-    const actorAction = rawT >= 1 ? curActor.action : prevActor.action
+    const curFacing = curActor.facing ?? prevActor.facing
+    const curAction = curActor.action ?? prevActor.action
+    const actorFacing = lerp(prevActor.facing, curFacing, t)
+    const actorAction = rawT >= 1 ? curAction : prevActor.action
 
     // 触发器：仅在进入该 beat 的第一帧（rawT 接近 0）时设
     const justEntered = rawT < 0.05
