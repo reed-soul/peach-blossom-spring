@@ -115,9 +115,8 @@ export function Actor({ posRef, facingRef, actionRef }: ActorProps) {
     return m
   }, [])
   const mSleeveOutline = useMemo(() => {
-    const m = new THREE.MeshBasicMaterial({ color: '#15110c', side: THREE.BackSide })
-    applyWind(m, { axis: 'y-', pivot: 0.0, amount: 0.12, speed: 1.2, phase: 0.6, swayX: 1.0, swayZ: 0.5 })
-    return m
+    // 袖子描边：无风（袖子靠 group 旋转摆动）
+    return new THREE.MeshBasicMaterial({ color: '#15110c', side: THREE.BackSide })
   }, [])
   const mSashOutline = useMemo(() => {
     const m = new THREE.MeshBasicMaterial({ color: '#15110c', side: THREE.BackSide })
@@ -130,30 +129,47 @@ export function Actor({ posRef, facingRef, actionRef }: ActorProps) {
     return m
   }, [])
 
-  // 给下摆/袖口/长发/飘带的材质注入风
+  // 给下摆/长发/飘带的材质注入风（袖子用 group 旋转摆动，不走顶点风）
   useMemo(() => {
     applyWind(mRobe, { axis: 'y-', pivot: 0.55, amount: 0.14, speed: 1.1, phase: 0.0, swayX: 1.0, swayZ: 0.5 })
-    applyWind(mSleeve, { axis: 'y-', pivot: 0.0, amount: 0.12, speed: 1.2, phase: 0.6, swayX: 1.0, swayZ: 0.5 })
     applyWind(mSash, { axis: 'y-', pivot: 0.5, amount: 0.22, speed: 1.4, phase: 1.2, swayX: 1.2, swayZ: 0.7 })
     applyWind(mHair, { axis: 'y-', pivot: 1.55, amount: 0.1, speed: 0.9, phase: 2.4, swayX: 0.8, swayZ: 0.5 })
-  }, [mRobe, mSleeve, mSash, mHair])
+  }, [mRobe, mSash, mHair])
 
-  // 长袍下摆几何：上窄下宽的筒，分段多以便顶点动画
+  // 长袍下摆几何：用 LatheGeometry 旋转出真实汉服剪影
+  // 轮廓点（从上到下）：肩→胸→腰（收窄）→胯→下摆（大幅张开，拖地感）
   const robeGeom = useMemo(() => {
-    const g = new THREE.CylinderGeometry(0.42, 0.62, 1.5, 18, 12, true)
-    g.translate(0, -0.2, 0) // 中心在腰附近，向下展开
+    const profile = [
+      new THREE.Vector2(0.001, 0.0), // 中轴线起点（肩高）
+      new THREE.Vector2(0.30, -0.05), // 颈口
+      new THREE.Vector2(0.36, -0.18), // 胸
+      new THREE.Vector2(0.30, -0.40), // 收腰（仙侠束腰）
+      new THREE.Vector2(0.38, -0.58), // 胯
+      new THREE.Vector2(0.52, -0.78), // 下摆外扩
+      new THREE.Vector2(0.68, -0.92), // 下摆大幅张开（拖地）
+      new THREE.Vector2(0.78, -1.02), // 落地
+    ]
+    const g = new THREE.LatheGeometry(profile, 24)
     return g
   }, [])
+  // 广袖几何：横向锥筒，从肩(细)向袖口(宽)沿 X 轴伸出并下垂
   const sleeveGeom = useMemo(() => {
-    // 广袖：从肩部(细)到袖口(宽)的锥筒
-    const g = new THREE.CylinderGeometry(0.12, 0.34, 0.95, 12, 8, true)
-    g.translate(0, -0.5, 0) // 从肩部向下垂
+    // 横向 cylinder：topRadius=袖口宽, bottomRadius=肩接，旋转使轴沿 X
+    const g = new THREE.CylinderGeometry(0.42, 0.14, 1.0, 14, 8, true)
+    g.rotateZ(Math.PI / 2) // 轴从 Y 转到 X
+    g.translate(-0.5, -0.15, 0) // 从原点向 -X 伸出并略下垂
     return g
   }, [])
   const hairGeom = useMemo(() => {
-    // 背后长发：从头顶到腰的发束
-    const g = new THREE.CylinderGeometry(0.06, 0.16, 0.95, 10, 8, true)
-    g.translate(0, -0.48, 0)
+    // 背后长发：用 Lathe 做自然收束的发束
+    const profile = [
+      new THREE.Vector2(0.001, 0.0),
+      new THREE.Vector2(0.09, -0.08),
+      new THREE.Vector2(0.12, -0.3),
+      new THREE.Vector2(0.10, -0.6), // 中段收
+      new THREE.Vector2(0.06, -0.9), // 发梢
+    ]
+    const g = new THREE.LatheGeometry(profile, 10)
     return g
   }, [])
   const sashGeom = useMemo(() => {
@@ -271,7 +287,7 @@ export function Actor({ posRef, facingRef, actionRef }: ActorProps) {
           {/* 袖口内衬 */}
           <mesh geometry={sleeveGeom} scale={[0.5, 0.96, 0.5]} material={mInner} />
         </group>
-        <group ref={rightSleeve} position={[0.34, 1.22, 0]}>
+        <group ref={rightSleeve} position={[0.34, 1.22, 0]} scale={[-1, 1, 1]}>
           <mesh material={mSleeve} geometry={sleeveGeom} castShadow />
           <mesh material={mSleeveOutline} geometry={sleeveGeom} />
           <mesh geometry={sleeveGeom} scale={[0.5, 0.96, 0.5]} material={mInner} />
