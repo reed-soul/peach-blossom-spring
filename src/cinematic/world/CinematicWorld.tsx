@@ -10,6 +10,9 @@ import {
   Rocks,
 } from '../../components/world/ProceduralTrees'
 import { PetalParticles } from '../../components/world/PetalParticles'
+import { ForestDetails } from './ForestDetails'
+import { VillageDetails } from './VillageDetails'
+import { CaveAndSky } from './CaveAndSky'
 
 // 电影模式固定明亮的暖调光照（不走 DayNightCycle 的昼夜变化，保证全程氛围稳定）
 function BrightLighting() {
@@ -164,8 +167,13 @@ export function CinematicWorld() {
         <PetalParticles />
       </group>
 
+      {/* 桃林区域附加细节：落桃花团 + 地上落花毯 + 林间萤火（z≈-15..-45） */}
+      <ForestDetails />
+
       {/* 村庄在 z=-80 一带 */}
       <VillageArea />
+      {/* 村庄附加细节：石板路 + 篱笆 + 桑竹 + 水井 + 晾衣 + 农夫 */}
+      <VillageDetails />
 
       {/* 山洞口（z=-62，与剧本对应） */}
       <group position={[0, 0, -62]}>
@@ -179,6 +187,8 @@ export function CinematicWorld() {
         </mesh>
         <pointLight position={[0, 3, -3]} color={0xffd27a} intensity={2} distance={12} />
       </group>
+      {/* 洞口藤蔓/苔藓 + 洞内深处暖光 + 天空飞鸟/云雾 */}
+      <CaveAndSky />
     </Suspense>
   )
 }
