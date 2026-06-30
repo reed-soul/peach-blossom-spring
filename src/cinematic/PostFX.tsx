@@ -93,7 +93,7 @@ export function PostFX({ actIndex }: PostFXProps) {
   })
 
   return (
-    <EffectComposer multisampling={4} disableNormalPass>
+    <EffectComposer multisampling={4}>
       <DepthOfField
         ref={dofRef}
         focusDistance={current.current.dofFocus}
