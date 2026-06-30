@@ -7,6 +7,7 @@ import { Actor } from './Actor'
 import { CinematicCamera } from './CinematicCamera'
 import { CinematicWorld } from './world/CinematicWorld'
 import { CaptionBar } from './CaptionBar'
+import { PostFX } from './PostFX'
 import {
   speak as narratorSpeak,
   cancelNarration,
@@ -163,6 +164,7 @@ export default function CinematicExperience() {
       >
         <DirectorRunner onState={onState} />
         <CinematicWorld />
+        <PostFX actIndex={uiState.actIndex} />
       </Canvas>
 
       {/* 字幕 + 幕间标题 */}
