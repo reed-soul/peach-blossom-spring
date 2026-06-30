@@ -4,6 +4,10 @@ import * as THREE from 'three'
 import type { ActorAction } from './types'
 import { applyWind, tickWindMaterials } from './WindShader'
 
+function lerpScalar(a: number, b: number, t: number): number {
+  return a + (b - a) * t
+}
+
 // ─────────────────────────────────────────────────────────────
 // 仙侠风渔人：宽袍广袖 · 交领 · 长发 · 束发冠 · 飘带 · 玉佩
 // 飘动用顶点着色器（onBeforeCompile），保持 toon 卡通渲染
@@ -81,6 +85,7 @@ export interface ActorProps {
 export function Actor({ posRef, facingRef, actionRef, onStep }: ActorProps) {
   const root = useRef<THREE.Group>(null)
   const body = useRef<THREE.Group>(null)
+  const neck = useRef<THREE.Group>(null) // 分层：颈→头（头部可独立微点，分层呼吸）
   const robeGroup = useRef<THREE.Group>(null)
   const leftSleeve = useRef<THREE.Group>(null)
   const rightSleeve = useRef<THREE.Group>(null)
@@ -89,6 +94,12 @@ export function Actor({ posRef, facingRef, actionRef, onStep }: ActorProps) {
   const sashR = useRef<THREE.Mesh>(null)
   const tRef = useRef(0)
   const lastStepSign = useRef(1) // 脚步触发：检测 swing 正弦过零点
+  // 动作 blend：缓存当前各关节角度，lerp 到目标，消除 action 间硬切
+  const blended = useRef({
+    bodyY: 0, bodyRotZ: 0, bodyRotX: 0,
+    neckRotX: 0,
+    leftArmX: 0.15, rightArmX: 0.15,
+  })
 
   const gradient = useGradientMap()
 
@@ -201,40 +212,71 @@ export function Actor({ posRef, facingRef, actionRef, onStep }: ActorProps) {
     // 推进风着色器时间
     tickWindMaterials(g, state.clock.elapsedTime)
 
-    // 行走：整体上下浮动 + 四肢摆动
+    // ── 计算目标姿态（每个 action 产出一组目标关节角度） ──
+    const WALK_FREQ = 2.8 // 行走频率（原 7 太快像小跑）
+    const ROW_FREQ = 3.2
+    let tgt = {
+      bodyY: 0, bodyRotZ: 0, bodyRotX: 0,
+      neckRotX: 0,
+      leftArmX: 0.15, rightArmX: 0.15,
+    }
+
     if (action === 'walk' || action === 'enter') {
-      const swing = Math.sin(t * 7) * 0.6
-      if (body.current) {
-        body.current.position.y = Math.abs(Math.sin(t * 7)) * 0.06
-        body.current.rotation.z = Math.sin(t * 7) * 0.03
-      }
-      if (leftSleeve.current) leftSleeve.current.rotation.x = swing * 0.5 + 0.2
-      if (rightSleeve.current) rightSleeve.current.rotation.x = -swing * 0.5 + 0.2
-      // 脚步声：检测 sin(t*7) 过零点（脚落地时刻）
-      const sign = Math.sin(t * 7) >= 0 ? 1 : -1
+      const ph = Math.sin(t * WALK_FREQ)
+      const phAbs = Math.abs(ph)
+      tgt.bodyY = phAbs * 0.06 // 步频上下浮动
+      tgt.bodyRotZ = ph * 0.04 // 骨盆左右重心转移
+      tgt.bodyRotX = 0.06 - phAbs * 0.03 // 上半身轻微前倾 + 胸腔反向补偿
+      tgt.neckRotX = 0.03 + Math.sin(t * WALK_FREQ + 0.5) * 0.02 // 头微点
+      tgt.leftArmX = ph * 0.5 + 0.2 // 双臂对侧摆
+      tgt.rightArmX = -ph * 0.5 + 0.2
+      // 脚步声：sin 过零点（脚落地）
+      const sign = ph >= 0 ? 1 : -1
       if (onStep && sign !== lastStepSign.current) {
         lastStepSign.current = sign
         onStep()
       }
     } else if (action === 'row') {
-      // 划船：双手前后交替大幅摆动
-      const row = Math.sin(t * 3.2)
-      if (leftSleeve.current) leftSleeve.current.rotation.x = row * 1.1 - 0.4
-      if (rightSleeve.current) rightSleeve.current.rotation.x = row * 1.1 - 0.4
-      if (body.current) body.current.position.y = Math.abs(Math.sin(t * 3.2)) * 0.04
+      const ph = Math.sin(t * ROW_FREQ)
+      tgt.bodyY = Math.abs(ph) * 0.04
+      tgt.bodyRotX = -ph * 0.08 // 划船身体前倾后仰
+      tgt.leftArmX = ph * 1.0 - 0.5 // 对侧交替（原为同向，失真）
+      tgt.rightArmX = -ph * 1.0 - 0.5
+      tgt.neckRotX = -ph * 0.04
     } else if (action === 'sit') {
-      if (body.current) body.current.position.y = -0.35
-      if (leftSleeve.current) leftSleeve.current.rotation.x = -1.2
-      if (rightSleeve.current) rightSleeve.current.rotation.x = -1.2
+      tgt.bodyY = -0.35 // 落座（blend 会缓动过渡，不再瞬降）
+      tgt.bodyRotX = 0.12
+      tgt.leftArmX = -1.0 // 双手置前（作揖/扶膝）
+      tgt.rightArmX = -1.0
+      tgt.neckRotX = 0.08
     } else {
-      // idle：呼吸 + 轻微摇摆（配合风）
-      if (body.current) {
-        body.current.position.y = Math.sin(t * 1.5) * 0.02
-        body.current.rotation.z = Math.sin(t * 0.8) * 0.015
-      }
-      if (leftSleeve.current) leftSleeve.current.rotation.x = 0.15 + Math.sin(t * 0.8) * 0.04
-      if (rightSleeve.current) rightSleeve.current.rotation.x = 0.15 - Math.sin(t * 0.8) * 0.04
+      // idle：分层呼吸（身体起伏 + 头微点，不同相位）
+      tgt.bodyY = Math.sin(t * 1.5) * 0.02
+      tgt.bodyRotZ = Math.sin(t * 0.8) * 0.015
+      tgt.bodyRotX = Math.sin(t * 1.5 + 0.3) * 0.025 // 胸腔呼吸（并入身体层）
+      tgt.neckRotX = Math.sin(t * 0.9 + 1.2) * 0.02 // 头部慢点（独立相位）
+      tgt.leftArmX = 0.15 + Math.sin(t * 0.8) * 0.04
+      tgt.rightArmX = 0.15 - Math.sin(t * 0.8) * 0.04
     }
+
+    // ── blend：每帧把当前姿态 lerp 到目标，消除 action 切换硬切 ──
+    const b = blended.current
+    const k = 0.12 // 阻尼系数
+    b.bodyY = lerpScalar(b.bodyY, tgt.bodyY, k)
+    b.bodyRotZ = lerpScalar(b.bodyRotZ, tgt.bodyRotZ, k)
+    b.bodyRotX = lerpScalar(b.bodyRotX, tgt.bodyRotX, k)
+    b.neckRotX = lerpScalar(b.neckRotX, tgt.neckRotX, k)
+    b.leftArmX = lerpScalar(b.leftArmX, tgt.leftArmX, k)
+    b.rightArmX = lerpScalar(b.rightArmX, tgt.rightArmX, k)
+
+    if (body.current) {
+      body.current.position.y = b.bodyY
+      body.current.rotation.z = b.bodyRotZ
+      body.current.rotation.x = b.bodyRotX
+    }
+    if (neck.current) neck.current.rotation.x = b.neckRotX
+    if (leftSleeve.current) leftSleeve.current.rotation.x = b.leftArmX
+    if (rightSleeve.current) rightSleeve.current.rotation.x = b.rightArmX
   })
 
   return (
@@ -271,22 +313,25 @@ export function Actor({ posRef, facingRef, actionRef, onStep }: ActorProps) {
           <boxGeometry args={[0.08, 0.12, 0.03]} />
         </mesh>
 
-        {/* ===== 头 ===== */}
-        <Part geom={<sphereGeometry args={[0.27, 18, 18]} />} mat={mSkin} position={[0, 1.62, 0]} outline={1.06} />
+        {/* ===== 颈→头部分层（头部可独立微点，分层呼吸） ===== */}
+        <group ref={neck} position={[0, 1.5, 0]}>
+          {/* 头 */}
+          <Part geom={<sphereGeometry args={[0.27, 18, 18]} />} mat={mSkin} position={[0, 0.12, 0]} outline={1.06} />
 
-        {/* ===== 背后长发（本体+描边都带风） ===== */}
-        <mesh ref={hairBack} position={[0, 1.58, -0.18]} material={mHair} geometry={hairGeom} castShadow />
-        <mesh position={[0, 1.58, -0.18]} material={mHairOutline} geometry={hairGeom} />
-        {/* 头顶发 */}
-        <Part geom={<sphereGeometry args={[0.27, 16, 16, 0, Math.PI * 2, 0, Math.PI * 0.55]} />} mat={mHair} position={[0, 1.64, 0]} outline={1.07} />
+          {/* 背后长发（本体+描边都带风） */}
+          <mesh ref={hairBack} position={[0, 0.08, -0.18]} material={mHair} geometry={hairGeom} castShadow />
+          <mesh position={[0, 0.08, -0.18]} material={mHairOutline} geometry={hairGeom} />
+          {/* 头顶发 */}
+          <Part geom={<sphereGeometry args={[0.27, 16, 16, 0, Math.PI * 2, 0, Math.PI * 0.55]} />} mat={mHair} position={[0, 0.14, 0]} outline={1.07} />
 
-        {/* ===== 束发冠 ===== */}
-        <mesh position={[0, 1.86, 0]} material={mCrown}>
-          <cylinderGeometry args={[0.16, 0.18, 0.14, 8]} />
-        </mesh>
-        <mesh position={[0, 1.95, 0]} material={mCrown}>
-          <sphereGeometry args={[0.05, 10, 10]} />
-        </mesh>
+          {/* 束发冠 */}
+          <mesh position={[0, 0.36, 0]} material={mCrown}>
+            <cylinderGeometry args={[0.16, 0.18, 0.14, 8]} />
+          </mesh>
+          <mesh position={[0, 0.45, 0]} material={mCrown}>
+            <sphereGeometry args={[0.05, 10, 10]} />
+          </mesh>
+        </group>
 
         {/* ===== 广袖（左右，本体+描边都带风） ===== */}
         <group ref={leftSleeve} position={[-0.34, 1.22, 0]}>
