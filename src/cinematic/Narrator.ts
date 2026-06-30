@@ -5,6 +5,15 @@ let enabled = true
 const rate = 0.92 // 略慢，便于课堂跟读
 const pitch = 1.0
 
+// ducking 钩子：旁白开始/结束时回调 AudioManager 压低/恢复环境音
+let onSpeakStart: (() => void) | null = null
+let onSpeakEnd: (() => void) | null = null
+
+export function setDuckHooks(start: () => void, end: () => void) {
+  onSpeakStart = start
+  onSpeakEnd = end
+}
+
 function pickVoice(): SpeechSynthesisVoice | null {
   if (typeof window === 'undefined' || !window.speechSynthesis) return null
   if (cachedVoice !== undefined) return cachedVoice
@@ -39,6 +48,10 @@ export function speak(text: string) {
     u.pitch = pitch
     const v = pickVoice()
     if (v) u.voice = v
+    // ducking 联动：开始压低、结束恢复
+    u.onstart = () => onSpeakStart?.()
+    u.onend = () => onSpeakEnd?.()
+    u.onerror = () => onSpeakEnd?.()
     window.speechSynthesis.speak(u)
   } catch {
     /* 静默降级 */
@@ -51,6 +64,7 @@ export function cancelNarration() {
       window.speechSynthesis.cancel()
     } catch {}
   }
+  onSpeakEnd?.()
 }
 
 // 预加载语音列表（某些浏览器异步加载 voices）

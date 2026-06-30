@@ -15,6 +15,7 @@ import {
   setNarrationEnabled,
   getNarrationEnabled,
   primeVoices,
+  setDuckHooks,
 } from './Narrator'
 import { useAudio } from '../engine/AudioManager'
 import type { DirectorState, ActorAction } from './types'
@@ -34,10 +35,18 @@ function DirectorRunner({
   // 暴露 restart 给外层（通过 ref 桥）
   const dirRef = useRef(dir)
   dirRef.current = dir
+  const audioRef0 = useRef(audio)
+  audioRef0.current = audio
   useEffect(() => {
     ;(window as any).__cinematicRestart = () => dirRef.current.restart()
+    // 注入 ducking 钩子：旁白开始压低环境音、结束恢复
+    setDuckHooks(
+      () => audioRef0.current.duck(0.18, 0.3),
+      () => audioRef0.current.unduck(0.5),
+    )
     return () => {
       delete (window as any).__cinematicRestart
+      setDuckHooks(() => {}, () => {})
     }
   }, [])
 
@@ -62,31 +71,55 @@ function DirectorRunner({
   const lastBeat = useRef<{ a: number; b: number }>({ a: -1, b: -1 })
   const onStateRef = useRef(onState)
   onStateRef.current = onState
+  const audioRef = useRef(audio)
+  audioRef.current = audio
   useEffect(() => {
     let raf = 0
     const loop = () => {
       const s = dirRef.current.stateRef.current
       if (s.actIndex !== lastBeat.current.a || s.beatIndex !== lastBeat.current.b) {
         lastBeat.current = { a: s.actIndex, b: s.beatIndex }
+        const a = audioRef.current
         if (s.narrationTrigger) narratorSpeak(s.narrationTrigger)
-        if (s.sfxTrigger) {
-          if (s.sfxTrigger === 'village' || s.sfxTrigger === 'chime' || s.sfxTrigger === 'gong') {
-            audio.startAmbient('village')
+        // 幕首拍：切整个环境层组合
+        if (s.beatIndex === 0) {
+          if (s.actIndex <= 1) {
+            // 溪流/桃林：水+鸟+风+轻古琴
+            a.playLayer('water', 0.13)
+            a.playLayer('birds', 0.11)
+            a.playLayer('wind', 0.08)
+            a.playLayer('guqin', 0.05)
+          } else if (s.actIndex === 2) {
+            // 洞内：压掉鸟水，留风，突出幽暗
+            a.stopLayer('birds', 1.0)
+            a.stopLayer('water', 1.0)
+            a.playLayer('wind', 0.12)
+            a.stopLayer('guqin', 1.0)
           } else {
-            audio.startAmbient('forest')
+            // 村庄：古琴主+远景鸟
+            a.playLayer('guqin', 0.14)
+            a.playLayer('birds', 0.05)
+            a.stopLayer('water', 1.2)
+            a.stopLayer('wind', 1.2)
           }
         }
+        // 事件音（任意 beat 都可触发）
+        if (s.sfxTrigger === 'chime') a.playOneShot('chime', 0.3)
+        else if (s.sfxTrigger === 'gong') a.playOneShot('gong', 0.35)
+        else if (s.sfxTrigger === 'water') a.playLayer('water', 0.15)
+        else if (s.sfxTrigger === 'birds') a.playLayer('birds', 0.13)
+        else if (s.sfxTrigger === 'wind') a.playLayer('wind', 0.1)
       }
       onStateRef.current(s)
       raf = requestAnimationFrame(loop)
     }
     raf = requestAnimationFrame(loop)
     return () => cancelAnimationFrame(raf)
-  }, [audio])
+  }, [])
 
   return (
     <>
-      <Actor posRef={posRef} facingRef={facingRef} actionRef={actionRef} />
+      <Actor posRef={posRef} facingRef={facingRef} actionRef={actionRef} onStep={() => audioRef0.current.playStep()} />
       <CinematicCamera stateRef={dir.stateRef} hasStarted={dir.hasStarted} />
     </>
   )

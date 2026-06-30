@@ -75,9 +75,10 @@ export interface ActorProps {
   posRef: React.MutableRefObject<[number, number, number]>
   facingRef: React.MutableRefObject<number>
   actionRef: React.MutableRefObject<ActorAction>
+  onStep?: () => void
 }
 
-export function Actor({ posRef, facingRef, actionRef }: ActorProps) {
+export function Actor({ posRef, facingRef, actionRef, onStep }: ActorProps) {
   const root = useRef<THREE.Group>(null)
   const body = useRef<THREE.Group>(null)
   const robeGroup = useRef<THREE.Group>(null)
@@ -87,6 +88,7 @@ export function Actor({ posRef, facingRef, actionRef }: ActorProps) {
   const sashL = useRef<THREE.Mesh>(null)
   const sashR = useRef<THREE.Mesh>(null)
   const tRef = useRef(0)
+  const lastStepSign = useRef(1) // 脚步触发：检测 swing 正弦过零点
 
   const gradient = useGradientMap()
 
@@ -208,6 +210,12 @@ export function Actor({ posRef, facingRef, actionRef }: ActorProps) {
       }
       if (leftSleeve.current) leftSleeve.current.rotation.x = swing * 0.5 + 0.2
       if (rightSleeve.current) rightSleeve.current.rotation.x = -swing * 0.5 + 0.2
+      // 脚步声：检测 sin(t*7) 过零点（脚落地时刻）
+      const sign = Math.sin(t * 7) >= 0 ? 1 : -1
+      if (onStep && sign !== lastStepSign.current) {
+        lastStepSign.current = sign
+        onStep()
+      }
     } else if (action === 'row') {
       // 划船：双手前后交替大幅摆动
       const row = Math.sin(t * 3.2)
