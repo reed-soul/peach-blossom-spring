@@ -3,6 +3,7 @@ import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 import type { ActorAction } from './types'
 import { applyWind, tickWindMaterials } from './WindShader'
+import { getCloudPattern, getBeltPattern } from './textures'
 
 function lerpScalar(a: number, b: number, t: number): number {
   return a + (b - a) * t
@@ -111,10 +112,24 @@ export function Actor({ posRef, facingRef, actionRef, onStep }: ActorProps) {
   const mSkin = useToonMat('#f2d2ac', gradient) // 肤色
   const mHair = useToonMat('#1a1612', gradient) // 发色
   const mCrown = useMemo(
-    () => new THREE.MeshStandardMaterial({ color: '#c9a24a', metalness: 0.85, roughness: 0.25 }),
+    () => new THREE.MeshStandardMaterial({ color: '#c9a24a', metalness: 0.85, roughness: 0.25, emissive: new THREE.Color('#3a2810'), emissiveIntensity: 0.15 }),
     [],
   )
   const mBoot = useToonMat('#241c16', gradient)
+
+  // 程序化纹理：用 emissiveMap 叠加云纹暗花（不改变 toon 颜色，仅微弱发光提暗纹）
+  useMemo(() => {
+    const cloud = getCloudPattern()
+    mRobe.emissive = new THREE.Color('#1a2a2a')
+    mRobe.emissiveMap = cloud
+    mRobe.emissiveIntensity = 0.12
+    mRobe.needsUpdate = true
+    const belt = getBeltPattern()
+    mBelt.emissive = new THREE.Color('#3a2810')
+    mBelt.emissiveMap = belt
+    mBelt.emissiveIntensity = 0.25
+    mBelt.needsUpdate = true
+  }, [mRobe, mBelt])
   const mJade = useMemo(
     () => new THREE.MeshStandardMaterial({ color: '#5fa88a', metalness: 0.3, roughness: 0.4 }),
     [],
@@ -317,6 +332,36 @@ export function Actor({ posRef, facingRef, actionRef, onStep }: ActorProps) {
         <group ref={neck} position={[0, 1.5, 0]}>
           {/* 头 */}
           <Part geom={<sphereGeometry args={[0.27, 18, 18]} />} mat={mSkin} position={[0, 0.12, 0]} outline={1.06} />
+
+          {/* ===== 面部五官（角色面向 -z，故五官在 z 负侧） ===== */}
+          {/* 眉（细长，略上扬的国风剑眉） */}
+          <mesh position={[-0.08, 0.22, -0.22]} rotation={[0, 0, -0.15]}>
+            <boxGeometry args={[0.1, 0.015, 0.02]} />
+            <meshToonMaterial color={mHair.color} gradientMap={gradient} />
+          </mesh>
+          <mesh position={[0.08, 0.22, -0.22]} rotation={[0, 0, 0.15]}>
+            <boxGeometry args={[0.1, 0.015, 0.02]} />
+            <meshToonMaterial color={mHair.color} gradientMap={gradient} />
+          </mesh>
+          {/* 眼（眯眼线条，国风写意，不画眼白） */}
+          <mesh position={[-0.08, 0.14, -0.235]} rotation={[0, 0, 0.1]}>
+            <boxGeometry args={[0.08, 0.012, 0.015]} />
+            <meshToonMaterial color={'#1a1612'} gradientMap={gradient} />
+          </mesh>
+          <mesh position={[0.08, 0.14, -0.235]} rotation={[0, 0, -0.1]}>
+            <boxGeometry args={[0.08, 0.012, 0.015]} />
+            <meshToonMaterial color={'#1a1612'} gradientMap={gradient} />
+          </mesh>
+          {/* 鼻（小三角锥，侧面才明显） */}
+          <mesh position={[0, 0.1, -0.25]} rotation={[Math.PI, 0, 0]}>
+            <coneGeometry args={[0.025, 0.06, 6]} />
+            <meshToonMaterial color={'#e8c4a0'} gradientMap={gradient} />
+          </mesh>
+          {/* 嘴（微抿，淡红） */}
+          <mesh position={[0, 0.02, -0.245]}>
+            <boxGeometry args={[0.06, 0.012, 0.015]} />
+            <meshToonMaterial color={'#a85a4a'} gradientMap={gradient} />
+          </mesh>
 
           {/* 背后长发（本体+描边都带风） */}
           <mesh ref={hairBack} position={[0, 0.08, -0.18]} material={mHair} geometry={hairGeom} castShadow />
