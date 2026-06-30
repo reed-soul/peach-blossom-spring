@@ -11,6 +11,7 @@ import {
   Rocks,
 } from '../../components/world/ProceduralTrees'
 import { PetalParticles } from '../../components/world/PetalParticles'
+import { GodRay } from '../../components/scenes/PeachForestScene'
 import { ForestDetails } from './ForestDetails'
 import { VillageDetails } from './VillageDetails'
 import { CaveAndSky } from './CaveAndSky'
@@ -187,6 +188,13 @@ export function CinematicWorld() {
         <PetalParticles />
       </group>
 
+      {/* 体积光（god rays）：阳光穿过桃林花冠，配合 Bloom 发光 */}
+      <GodRay position={[8, 18, -22]} target={[8, 0, -22]} />
+      <GodRay position={[-10, 18, -30]} target={[-10, 0, -30]} />
+      <GodRay position={[4, 18, -38]} target={[4, 0, -38]} />
+      {/* 洞口一束光（'仿佛若有光'的可见化） */}
+      <GodRay position={[0, 14, -58]} target={[0, 0, -62]} />
+
       {/* 桃林区域附加细节：落桃花团 + 地上落花毯 + 林间萤火（z≈-15..-45） */}
       <ForestDetails />
 
@@ -206,6 +214,16 @@ export function CinematicWorld() {
           <meshBasicMaterial color={0x070707} />
         </mesh>
         <pointLight position={[0, 3, -3]} color={0xffd27a} intensity={2} distance={12} />
+        {/* 洞口聚光：可见的入口光锥（'仿佛若有光'） */}
+        <spotLight
+          position={[0, 4, 2]}
+          angle={0.6}
+          penumbra={0.5}
+          intensity={3}
+          distance={18}
+          color={0xffd8a0}
+          target-position={[0, 0, -4]}
+        />
       </group>
       {/* 洞口藤蔓/苔藓 + 洞内深处暖光 + 天空飞鸟/云雾 */}
       <CaveAndSky />

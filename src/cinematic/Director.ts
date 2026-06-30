@@ -188,17 +188,17 @@ export class Director {
     const curActor = beat.actor ?? prevActor
 
     const rawT = (localTime - beatLocalStart) / beat.duration
-    const t = ease(Math.max(0, Math.min(1, rawT)))
+    // cut beat：硬切，snap 到目标（不做 lerp 平滑），用于'豁然开朗'等戏剧性瞬间
+    const isCut = beat.cut === true
+    const t = isCut ? 1 : ease(Math.max(0, Math.min(1, rawT)))
 
-    // 相机：从 prevBeat 末态插值到 beat.camera
-    const prevCam = prevBeat?.camera ?? beat.camera
-    const camPos = lerpVec3(prevCam.pos, beat.camera.pos, t)
-    const camLook = lerpVec3(prevCam.lookAt, beat.camera.lookAt, t)
-    const camFov = lerp(
-      prevCam.fov ?? DEFAULT_FOV,
-      beat.camera.fov ?? DEFAULT_FOV,
-      t,
-    )
+    // 相机：cut 时直接取目标；否则从 prevBeat 末态插值
+    const prevCam = isCut ? beat.camera : (prevBeat?.camera ?? beat.camera)
+    const camPos = isCut ? beat.camera.pos : lerpVec3(prevCam.pos, beat.camera.pos, t)
+    const camLook = isCut ? beat.camera.lookAt : lerpVec3(prevCam.lookAt, beat.camera.lookAt, t)
+    const camFov = isCut
+      ? (beat.camera.fov ?? DEFAULT_FOV)
+      : lerp(prevCam.fov ?? DEFAULT_FOV, beat.camera.fov ?? DEFAULT_FOV, t)
 
     // actor：从 prevActor 末态插值到 curActor
     const actorPos = lerpVec3(prevActor.pos, curActor.pos, t)

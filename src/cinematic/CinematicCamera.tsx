@@ -20,8 +20,14 @@ export function CinematicCamera({ stateRef, hasStarted }: CinematicCameraProps) 
     const s = stateRef.current
     const [px, py, pz] = s.camera.pos
     const [lx, ly, lz] = s.camera.lookAt
+    // 检测目标突变（Director 的 cut beat 会让 pos 大幅跳变）→ snap 快速到位
+    const dx = px - camera.position.x
+    const dy = py - camera.position.y
+    const dz = pz - camera.position.z
+    const jumpDist = Math.sqrt(dx * dx + dy * dy + dz * dz)
+    const lerpK = jumpDist > 4 ? 0.5 : 0.1 // 大跳变(硬切)时快速追，否则平滑缓动
     // 平滑跟随目标，营造电影感缓动
-    camera.position.lerp(tmpTarget.set(px, py, pz), 0.1)
+    camera.position.lerp(tmpTarget.set(px, py, pz), lerpK)
     camera.lookAt(tmpTarget.set(lx, ly, lz))
     const cam = camera as THREE.PerspectiveCamera
     if (Math.abs(cam.fov - s.camera.fov) > 0.01) {

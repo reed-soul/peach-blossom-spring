@@ -114,12 +114,13 @@ export const ACTS: Act[] = [
       {
         at: 0,
         duration: 14,
-        // 出洞瞬间：越过角色肩头，豁然开朗（广角拉远展现开阔）
+        // 出洞瞬间：硬切 + 广角，营造'豁然开朗'的视觉冲击
         camera: { pos: [3, 5.5, -67], lookAt: [0, 2, -82], fov: 62 },
         actor: { pos: [0, 0, -72], facing: Math.PI, action: 'walk' },
         caption: '复行数十步，豁然开朗。',
         narration: '又走了几十步，眼前突然开阔明亮起来。',
         sfx: 'village',
+        cut: true,
       },
       {
         at: 14,

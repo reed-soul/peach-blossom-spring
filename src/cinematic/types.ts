@@ -24,6 +24,7 @@ export interface Beat {
   caption?: string
   narration?: string
   sfx?: SfxName
+  cut?: boolean // 硬切：snap 到目标不做 lerp（用于'豁然开朗'等戏剧性瞬间）
 }
 
 export interface Act {
