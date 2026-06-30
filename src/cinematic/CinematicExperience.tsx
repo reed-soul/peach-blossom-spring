@@ -40,12 +40,13 @@ function DirectorRunner({
     }
   }, [])
 
-  // 进入后自动开始
+  // 进入后自动开始（只在 mount 时调一次；不能用 dir 做依赖，
+  // 因为 useDirector 每次渲染返回新对象，会导致 600ms 定时器反复重置 → startTime 永远停在近 0 → 时间线卡死）
   useEffect(() => {
     primeVoices()
-    const t = setTimeout(() => dir.start(), 600)
+    const t = setTimeout(() => dirRef.current.start(), 600)
     return () => clearTimeout(t)
-  }, [dir])
+  }, [])
 
   // useDirector 已在 useFrame 里推进 stateRef；这里每帧把状态下发到 refs
   useFrame(() => {
@@ -56,11 +57,14 @@ function DirectorRunner({
   })
 
   // RAF 把状态 + 触发器透传给 Canvas 外的 UI（独立于 R3F 帧循环）
+  // 依赖只用稳定引用，避免 dir/audio 每次渲染新对象导致 RAF 反复重建
   const lastBeat = useRef<{ a: number; b: number }>({ a: -1, b: -1 })
+  const onStateRef = useRef(onState)
+  onStateRef.current = onState
   useEffect(() => {
     let raf = 0
     const loop = () => {
-      const s = dir.stateRef.current
+      const s = dirRef.current.stateRef.current
       if (s.actIndex !== lastBeat.current.a || s.beatIndex !== lastBeat.current.b) {
         lastBeat.current = { a: s.actIndex, b: s.beatIndex }
         if (s.narrationTrigger) narratorSpeak(s.narrationTrigger)
@@ -72,12 +76,12 @@ function DirectorRunner({
           }
         }
       }
-      onState(s)
+      onStateRef.current(s)
       raf = requestAnimationFrame(loop)
     }
     raf = requestAnimationFrame(loop)
     return () => cancelAnimationFrame(raf)
-  }, [dir, onState, audio])
+  }, [audio])
 
   return (
     <>
@@ -94,9 +98,12 @@ export default function CinematicExperience() {
   const [narrationOn, setNarrationOn] = useState(isNarrationSupported())
   const [showRestart, setShowRestart] = useState(false)
   const finishedRef = useRef(false)
+  const progressRef = useRef<HTMLDivElement>(null)
 
   const lastAct = ACTS.length - 1
   const lastBeat = ACTS[lastAct].beats.length - 1
+  // 总拍数（用于进度条计算）
+  const totalBeats = ACTS.reduce((n, a) => n + a.beats.length, 0)
 
   const onState = useCallback(
     (s: DirectorState) => {
@@ -109,6 +116,14 @@ export default function CinematicExperience() {
           return prev
         return s
       })
+      // 进度条：直接操作 DOM，避免每帧 setState
+      if (progressRef.current) {
+        let done = 0
+        for (let i = 0; i < s.actIndex; i++) done += ACTS[i].beats.length
+        done += s.beatIndex + s.beatProgress
+        const pct = Math.min(100, (done / totalBeats) * 100)
+        progressRef.current.style.width = pct + '%'
+      }
       if (
         !finishedRef.current &&
         s.actIndex === lastAct &&
@@ -120,7 +135,7 @@ export default function CinematicExperience() {
         cancelNarration()
       }
     },
-    [lastAct, lastBeat],
+    [lastAct, lastBeat, totalBeats],
   )
 
   const handleRestart = useCallback(() => {
@@ -153,14 +168,29 @@ export default function CinematicExperience() {
       {/* 字幕 + 幕间标题 */}
       <CaptionBar caption={uiState.caption} title={uiState.title} />
 
-      {/* 顶部标题 */}
-      <div className="absolute top-4 left-1/2 -translate-x-1/2 z-20 pointer-events-none">
+      {/* 顶部标题 + 当前幕 */}
+      <div className="absolute top-4 left-1/2 -translate-x-1/2 z-20 pointer-events-none flex flex-col items-center gap-1">
         <p
           className="text-xs opacity-50"
           style={{ color: '#e8dcc4', letterSpacing: '0.2em' }}
         >
           桃花源记 · 电影讲解
         </p>
+        {uiState.title && (
+          <p className="text-[10px] opacity-30" style={{ color: '#d4c5a9', letterSpacing: '0.15em' }}>
+            {uiState.actIndex + 1} / {ACTS.length} · {ACTS[uiState.actIndex].title.replace(/^[^·]*·\s*/, '')}
+          </p>
+        )}
+      </div>
+
+      {/* 底部进度条 */}
+      <div className="absolute bottom-0 left-0 right-0 h-[3px] z-30 pointer-events-none" style={{ background: 'rgba(212,197,169,0.12)' }}>
+        <div
+          ref={progressRef}
+          data-progress="bar"
+          className="h-full"
+          style={{ width: '0%', background: 'linear-gradient(90deg, #a67c3a, #e8dcc4)', transition: 'width 0.1s linear' }}
+        />
       </div>
 
       {/* 右上：语音开关 */}

@@ -19,29 +19,29 @@ export const ACTS: Act[] = [
     beats: [
       {
         at: 0,
-        duration: 11,
-        // 跟背特写：角色划船顺溪（网游式近距离）
-        camera: { pos: [1.6, 2.6, 5.8], lookAt: [0, 1.5, 0], fov: 42 },
-        actor: { pos: [0, 0, 2], facing: Math.PI, action: 'row' },
+        duration: 8,
+        // 跟背：角色划船顺溪，一开始就在前进（z 从 6 → 2）
+        camera: { pos: [1.6, 2.6, 10], lookAt: [0, 1.5, 4], fov: 42 },
+        actor: { pos: [0, 0, 6], facing: Math.PI, action: 'row' },
         caption: '晋太元中，武陵人捕鱼为业。',
         narration: '东晋太元年间，武陵郡有个人，以打鱼为生。',
         sfx: 'water',
       },
       {
-        at: 11,
-        duration: 12,
-        // 侧面跟拍：镜头在右侧平视，展现划船姿态与广袖
-        camera: { pos: [7, 2.8, -1], lookAt: [0, 1.5, -3], fov: 42 },
-        actor: { pos: [0, 0, -1], facing: Math.PI, action: 'row' },
+        at: 8,
+        duration: 9,
+        // 角色继续前进（z 从 2 → -2），镜头同向跟随，平滑衔接
+        camera: { pos: [1.8, 2.7, 4], lookAt: [0, 1.5, -3], fov: 44 },
+        actor: { pos: [0, 0, 2], facing: Math.PI, action: 'row' },
         caption: '缘溪行，忘路之远近。',
         narration: '他沿着溪流划船前行，竟忘了走了多远。',
       },
       {
-        at: 23,
-        duration: 13,
-        // 越过角色肩头看向前方桃林（跟背，稍高）
-        camera: { pos: [1.8, 4.2, 3], lookAt: [0, 2, -10], fov: 52 },
-        actor: { pos: [0, 0, -4], facing: Math.PI, action: 'row' },
+        at: 17,
+        duration: 11,
+        // 镜头稍抬高，越过角色肩头看向前方桃林（角色 z → -5）
+        camera: { pos: [2, 3.6, 1], lookAt: [0, 2, -10], fov: 50 },
+        actor: { pos: [0, 0, -2], facing: Math.PI, action: 'row' },
         caption: '忽逢桃花林，夹岸数百步。',
         narration: '忽然，他遇见了一片桃花林，沿着溪水两岸绵延数百步。',
         sfx: 'birds',

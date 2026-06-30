@@ -31,8 +31,9 @@ export class Director {
   private actStartTimes: number[]
   readonly totalDuration: number
   private lastElapsed = 0
+  private initialActor: ActorState
 
-  constructor(acts: Act[]) {
+  constructor(acts: Act[], initialActor?: { pos: Vec3; facing?: number; action?: ActorAction }) {
     if (acts.length === 0) throw new Error('Director: 至少需要一幕')
     for (const act of acts) this.validateAct(act)
     this.acts = acts
@@ -43,6 +44,12 @@ export class Director {
       this.actStartTimes.push(acc)
       acc += this.actDuration(a)
     }
+    // 默认初始 actor：放在第一幕首拍目标的后方，让开场就有"走入"的位移
+    const firstActor = acts[0].beats[0].actor
+    const fp = firstActor?.pos ?? ([0, 0, 0] as Vec3)
+    this.initialActor = initialActor
+      ? { pos: initialActor.pos, facing: initialActor.facing ?? 0, action: initialActor.action ?? DEFAULT_ACTOR_ACTION }
+      : { pos: [fp[0], fp[1], fp[2] + 4], facing: firstActor?.facing ?? 0, action: firstActor?.action ?? DEFAULT_ACTOR_ACTION }
   }
 
   private actDuration(act: Act): number {
@@ -168,10 +175,16 @@ export class Director {
     const act = this.acts[actIndex]
     const beat = act.beats[beatIndex]
     const prevBeat = beatIndex > 0 ? act.beats[beatIndex - 1] : null
-    const prevActor = this.resolveActor(
-      actIndex,
-      Math.max(0, beatIndex - (prevBeat ? 1 : 0)),
-    )
+    // 首拍的 prevActor 取上一幕末拍（跨幕衔接）；
+    // 第一幕首拍则取 initialActor（外部初始位置），让开场就在运动
+    let prevActor: ActorState
+    if (prevBeat) {
+      prevActor = this.resolveActor(actIndex, beatIndex - 1)
+    } else if (actIndex > 0) {
+      prevActor = this.resolveActor(actIndex - 1, this.acts[actIndex - 1].beats.length - 1)
+    } else {
+      prevActor = this.initialActor
+    }
     const curActor = beat.actor ?? prevActor
 
     const rawT = (localTime - beatLocalStart) / beat.duration

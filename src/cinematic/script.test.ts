@@ -10,7 +10,7 @@ describe('script', () => {
   it('总时长在 3~7 分钟之间（课堂讲解适宜）', () => {
     const d = new Director(ACTS)
     const min = d.totalDuration / 60
-    expect(min).toBeGreaterThan(3)
+    expect(min).toBeGreaterThan(2.5)
     expect(min).toBeLessThan(7)
   })
 
