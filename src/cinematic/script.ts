@@ -176,4 +176,132 @@ export const ACTS: Act[] = [
       },
     ],
   },
+
+  // ───────── 第六幕 · 避秦（复用村庄，渔人落座听村人讲述身世） ─────────
+  {
+    name: 'qin',
+    title: '第六幕 · 不知有汉',
+    beats: [
+      {
+        at: 0,
+        duration: 13,
+        // 镜头扫过村中老幼：黄发垂髫，怡然自乐（复用村庄区域）
+        camera: { pos: [6, 3.0, -88], lookAt: [-2, 1.4, -93], fov: 42 },
+        actor: { pos: [0, 0, -90], facing: 0, action: 'sit' },
+        caption: '黄发垂髫，并怡然自乐。',
+        narration: '老人和小孩，都充满喜悦之情，自得其乐。',
+      },
+      {
+        at: 13,
+        duration: 14,
+        // 村人围聚问讯：侧面中景
+        camera: { pos: [-6, 2.8, -92], lookAt: [0, 1.7, -90], fov: 40 },
+        actor: { pos: [0, 0, -90], facing: 0, action: 'sit' },
+        caption: '村中闻有此人，咸来问讯。',
+        narration: '村里的人听说来了这么一个人，都来打听消息。',
+      },
+      {
+        at: 27,
+        duration: 18,
+        // 自述避秦来历：正面中景，渔人坐听（长句给足停留）
+        camera: { pos: [0, 2.4, -96], lookAt: [0, 1.5, -91], fov: 38 },
+        actor: { pos: [0, 0, -90], facing: 0, action: 'sit' },
+        caption: '自云先世避秦时乱，率妻子邑人来此绝境，不复出焉，遂与外人间隔。',
+        narration: '他们自己说，祖先为了躲避秦朝的战乱，带领妻子儿女和乡邻来到这个与世隔绝的地方，再也没有出去，于是和外面的人隔断了来往。',
+      },
+      {
+        at: 45,
+        duration: 18,
+        // 最经典名句：特写渔人，慢推，给足停留
+        camera: { pos: [2, 2.0, -94], lookAt: [0, 1.7, -91], fov: 34 },
+        actor: { pos: [0, 0, -90], facing: 0, action: 'sit' },
+        caption: '问今是何世，乃不知有汉，无论魏晋。此人一一为具言所闻，皆叹惋。',
+        narration: '他们问现在是什么朝代，竟然不知道有过汉朝，更不用说魏晋了。渔人把自己知道的一一详尽地告诉他们，他们都感叹惋惜。',
+        sfx: 'chime',
+      },
+    ],
+  },
+
+  // ───────── 第七幕 · 既出遂迷（复用桃林+洞口反向走回，浓雾去色表现迷路） ─────────
+  // actor 反向走：facing 翻为 0（朝 +z 走），相机改到 actor 的 -z 侧（身后）
+  {
+    name: 'lost',
+    title: '第七幕 · 遂迷不复得',
+    beats: [
+      {
+        at: 0,
+        duration: 13,
+        // 硬切：从桃源暖色切到出舟江面，时空断裂
+        camera: { pos: [2.5, 3.2, -96], lookAt: [0, 1.6, -90], fov: 44 },
+        actor: { pos: [0, 0, -90], facing: 0, action: 'walk' },
+        caption: '余人各复延至其家，皆出酒食。停数日，辞去。',
+        narration: '其余的人又各自把渔人请到家中，都拿出酒饭招待。渔人停留了几天，辞别离去。',
+        cut: true,
+      },
+      {
+        at: 13,
+        duration: 14,
+        // 既出得船，扶向路处处志之：回到洞口附近，反向行走（向 +z）
+        camera: { pos: [-1.8, 3.0, -68], lookAt: [0, 1.6, -62], fov: 42 },
+        actor: { pos: [0, 0, -64], facing: 0, action: 'walk' },
+        caption: '既出，得其船，便扶向路，处处志之。',
+        narration: '出来后，找到了他的船，就顺着来时的路回去，处处都做了标记。',
+      },
+      {
+        at: 27,
+        duration: 14,
+        // 诣太守：远景，借 MountainRange
+        camera: { pos: [4, 5.5, -40], lookAt: [0, 2, -30], fov: 50 },
+        actor: { pos: [0, 0, -38], facing: 0, action: 'walk' },
+        caption: '及郡下，诣太守，说如此。',
+        narration: '到了郡城，去拜见太守，报告了这番经历。',
+      },
+      {
+        at: 41,
+        duration: 16,
+        // 复寻桃林却迷路：复用桃林区域，actor facing 摇摆（idle 表现张望），浓雾由 PostFX 去色暗角营造
+        camera: { pos: [3, 2.8, -22], lookAt: [0, 1.6, -28], fov: 44 },
+        actor: { pos: [0, 0, -25], facing: 2.4, action: 'idle' },
+        caption: '太守即遣人随其往，寻向所志，遂迷，不复得路。',
+        narration: '太守立即派人跟着他去，寻找先前所做的标记，结果迷了路，再也找不到原来的路了。',
+        sfx: 'wind',
+      },
+    ],
+  },
+
+  // ───────── 第八幕 · 无问津者（空旷远景，寂灭收尾） ─────────
+  {
+    name: 'elegy',
+    title: '第八幕 · 后遂无问津者',
+    beats: [
+      {
+        at: 0,
+        duration: 15,
+        // 刘子骥规往：静态远景，借 MountainRange 远山
+        camera: { pos: [5, 4.5, -10], lookAt: [0, 2.5, -25], fov: 48 },
+        actor: { pos: [0, 0, -18], facing: Math.PI, action: 'idle' },
+        caption: '南阳刘子骥，高尚士也，闻之，欣然规往。',
+        narration: '南阳人刘子骥，是个高洁的隐士，听说了这件事，高兴地计划前往。',
+      },
+      {
+        at: 15,
+        duration: 14,
+        // 未果病终：画面继续空寂
+        camera: { pos: [3, 4.0, -8], lookAt: [0, 2, -22], fov: 46 },
+        actor: { pos: [0, 0, -18], facing: Math.PI, action: 'idle' },
+        caption: '未果，寻病终。',
+        narration: '没有实现，不久就病死了。',
+      },
+      {
+        at: 29,
+        duration: 18,
+        // 后遂无问津者：固定长镜头推向空山，actor 远去，cut 收尾
+        camera: { pos: [0, 3.5, -5], lookAt: [0, 2, -30], fov: 44 },
+        actor: { pos: [0, 0, -28], facing: Math.PI, action: 'walk' },
+        caption: '后遂无问津者。',
+        narration: '从此以后，就再也没有人去探寻桃花源了。',
+        sfx: 'chime',
+      },
+    ],
+  },
 ]

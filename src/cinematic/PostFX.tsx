@@ -23,7 +23,9 @@ interface FxPreset {
   dofFocus: number
 }
 
-// 按幕调色：第三幕洞内偏冷压暗，第四幕豁然开朗提亮提饱
+// 按幕调色：第三幕洞内偏冷压暗，第四幕豁然开朗提亮提饱；
+// 第六幕起桃源暖意渐褪，第七幕去色压抑表现迷路，第八幕寂灭收尾——
+// 形成"光一点点被抽走"的视觉悲剧弧线
 const PRESETS: FxPreset[] = [
   // 幕1 溪流：晨光柔和
   { bloomIntensity: 0.5, bloomThreshold: 0.85, saturation: 0.08, brightness: 0.02, contrast: 0.08, vignetteDark: 0.5, dofFocus: 0.02 },
@@ -35,6 +37,12 @@ const PRESETS: FxPreset[] = [
   { bloomIntensity: 0.9, bloomThreshold: 0.75, saturation: 0.22, brightness: 0.08, contrast: 0.1, vignetteDark: 0.42, dofFocus: 0.02 },
   // 幕5 此中人语：暖意
   { bloomIntensity: 0.6, bloomThreshold: 0.82, saturation: 0.1, brightness: 0.03, contrast: 0.1, vignetteDark: 0.5, dofFocus: 0.02 },
+  // 幕6 避秦：桃源暖意开始淡（微降饱和）
+  { bloomIntensity: 0.55, bloomThreshold: 0.82, saturation: 0.05, brightness: 0.02, contrast: 0.12, vignetteDark: 0.54, dofFocus: 0.02 },
+  // 幕7 既出遂迷：去色压抑（接近黑白，重压暗角）表现迷路
+  { bloomIntensity: 0.4, bloomThreshold: 0.7, saturation: -0.25, brightness: -0.1, contrast: 0.22, vignetteDark: 0.78, dofFocus: 0.022 },
+  // 幕8 无问津者：寂灭（强虚化 + 重暗角）
+  { bloomIntensity: 0.3, bloomThreshold: 0.75, saturation: -0.4, brightness: -0.05, contrast: 0.18, vignetteDark: 0.85, dofFocus: 0.028 },
 ]
 
 function lerp(a: number, b: number, t: number) {
