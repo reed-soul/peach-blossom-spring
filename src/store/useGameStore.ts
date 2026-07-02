@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 
-export type SceneName = 'menu' | 'opening' | 'forest' | 'cave' | 'village' | 'ending' | 'cinematic'
+export type SceneName = 'menu' | 'opening' | 'forest' | 'cave' | 'village' | 'epilogue' | 'ending' | 'cinematic'
 
 interface StoryState {
   visitedNPCs: string[]

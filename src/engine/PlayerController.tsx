@@ -1,15 +1,6 @@
-import { useEffect, useRef, useCallback, useState } from 'react'
-import { useFrame, useThree } from '@react-three/fiber'
-import { RigidBody, CapsuleCollider } from '@react-three/rapier'
-import * as THREE from 'three'
+import { lazy, Suspense, useEffect, useRef, useState } from 'react'
+import type { PlayerBodyProps } from './PlayerBody'
 
-interface PlayerControllerProps {
-  speed?: number
-  sprintSpeed?: number
-  position?: [number, number, number]
-}
-
-// Touch joystick state shared between 3D and UI
 export const touchInput = {
   moveX: 0,
   moveY: 0,
@@ -18,166 +9,18 @@ export const touchInput = {
   active: false,
 }
 
-// The inner component that uses Rapier hooks (must be inside Physics)
-function PlayerBody({ speed = 5, sprintSpeed = 8, position = [0, 3, 10] }: PlayerControllerProps) {
-  const { camera, gl } = useThree()
-  const rigidBody = useRef<any>(null)
-  const keys = useRef<Set<string>>(new Set())
-  const euler = useRef(new THREE.Euler(0, 0, 0, 'YXZ'))
-  const bobPhase = useRef(0)
-  const isMoving = useRef(false)
-  const isTouchDevice = useRef('ontouchstart' in window)
-  const canJump = useRef(false)
+const LazyPlayerBody = lazy(() =>
+  import('./PlayerBody').then((mod) => ({ default: mod.PlayerBody })),
+)
 
-  const onMouseMove = useCallback((e: MouseEvent) => {
-    if (!document.pointerLockElement) return
-    euler.current.setFromQuaternion(camera.quaternion)
-    euler.current.y -= e.movementX * 0.002
-    euler.current.x -= e.movementY * 0.002
-    euler.current.x = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, euler.current.x))
-    camera.quaternion.setFromEuler(euler.current)
-  }, [camera])
-
-  const onClick = useCallback(() => {
-    if (isTouchDevice.current) return
-    if (!document.pointerLockElement) {
-      gl.domElement.requestPointerLock?.()
-    }
-  }, [gl])
-
-  // Jump on space
-  useEffect(() => {
-    const onKeyDown = (e: KeyboardEvent) => {
-      keys.current.add(e.code)
-      if (e.code === 'Space' && canJump.current && rigidBody.current) {
-        rigidBody.current.applyImpulse({ x: 0, y: 5, z: 0 }, true)
-        canJump.current = false
-      }
-    }
-    const onKeyUp = (e: KeyboardEvent) => keys.current.delete(e.code)
-
-    window.addEventListener('keydown', onKeyDown)
-    window.addEventListener('keyup', onKeyUp)
-    if (!isTouchDevice.current) {
-      document.addEventListener('mousemove', onMouseMove)
-      gl.domElement.addEventListener('click', onClick)
-    }
-
-    return () => {
-      window.removeEventListener('keydown', onKeyDown)
-      window.removeEventListener('keyup', onKeyUp)
-      document.removeEventListener('mousemove', onMouseMove)
-      gl.domElement.removeEventListener('click', onClick)
-      document.exitPointerLock?.()
-    }
-  }, [camera, gl, onMouseMove, onClick])
-
-  useFrame((_, delta) => {
-    if (!rigidBody.current) return
-
-    const k = keys.current
-    const sprinting = k.has('ShiftLeft') || k.has('ShiftRight')
-    const spd = sprinting ? sprintSpeed : speed
-
-    // Movement direction from camera facing (horizontal only)
-    const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion)
-    forward.y = 0
-    forward.normalize()
-    const right = new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion)
-    right.y = 0
-    right.normalize()
-
-    const move = new THREE.Vector3()
-
-    // Keyboard
-    if (k.has('KeyW') || k.has('ArrowUp')) move.add(forward)
-    if (k.has('KeyS') || k.has('ArrowDown')) move.sub(forward)
-    if (k.has('KeyD') || k.has('ArrowRight')) move.add(right)
-    if (k.has('KeyA') || k.has('ArrowLeft')) move.sub(right)
-
-    // Touch
-    if (touchInput.active) {
-      move.add(forward.clone().multiplyScalar(-touchInput.moveY))
-      move.add(right.clone().multiplyScalar(touchInput.moveX))
-    }
-
-    // Touch look
-    if (touchInput.lookX !== 0 || touchInput.lookY !== 0) {
-      euler.current.setFromQuaternion(camera.quaternion)
-      euler.current.y -= touchInput.lookX * 0.003
-      euler.current.x -= touchInput.lookY * 0.003
-      euler.current.x = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, euler.current.x))
-      camera.quaternion.setFromEuler(euler.current)
-      touchInput.lookX = 0
-      touchInput.lookY = 0
-    }
-
-    isMoving.current = move.length() > 0
-
-    if (isMoving.current) {
-      move.normalize()
-      // Apply velocity in movement direction
-      const vel = rigidBody.current.linvel()
-      const targetVelX = move.x * spd
-      const targetVelZ = move.z * spd
-      // Smooth velocity change (feels better than instant)
-      rigidBody.current.setLinvel(
-        { x: THREE.MathUtils.lerp(vel.x, targetVelX, 0.15), y: vel.y, z: THREE.MathUtils.lerp(vel.z, targetVelZ, 0.15) },
-        true,
-      )
-    } else {
-      // Friction when not moving
-      const vel = rigidBody.current.linvel()
-      rigidBody.current.setLinvel({ x: vel.x * 0.85, y: vel.y, z: vel.z * 0.85 }, true)
-    }
-
-    // Sync camera to rigid body position
-    const bodyPos = rigidBody.current.translation()
-    camera.position.set(bodyPos.x, bodyPos.y + 0.5, bodyPos.z)
-
-    // Head bob
-    if (isMoving.current && canJump.current) {
-      const bobSpeed = sprinting ? 12 : 8
-      bobPhase.current += delta * bobSpeed
-      const bobY = Math.sin(bobPhase.current) * 0.06
-      const bobX = Math.cos(bobPhase.current * 0.5) * 0.02
-      camera.position.y += bobY
-      camera.rotation.z = bobX * 0.03
-    } else {
-      bobPhase.current = 0
-      camera.rotation.z *= 0.9
-    }
-
-    // Ground check via y-velocity (simple and reliable)
-    const vel = rigidBody.current.linvel()
-    canJump.current = Math.abs(vel.y) < 0.5 && bodyPos.y < 2
-
-    // Prevent falling out of world
-    if (bodyPos.y < -10) {
-      rigidBody.current.setTranslation({ x: 0, y: 3, z: 10 }, true)
-      rigidBody.current.setLinvel({ x: 0, y: 0, z: 0 }, true)
-    }
-  })
-
+export function PlayerController(props: PlayerBodyProps) {
   return (
-    <RigidBody
-      ref={rigidBody}
-      position={position}
-      linearDamping={2}
-      mass={1}
-      type="dynamic"
-      lockRotations
-    >
-      <CapsuleCollider args={[0.35, 0.35]} position={[0, 0.7, 0]} />
-    </RigidBody>
+    <Suspense fallback={null}>
+      <LazyPlayerBody {...props} />
+    </Suspense>
   )
 }
 
-export function PlayerController(props: PlayerControllerProps) {
-  return <PlayerBody {...props} />
-}
-
-// Mobile touch controls UI component
 export function MobileControls({ onAction }: { onAction?: () => void }) {
   const [isMobile, setIsMobile] = useState(false)
   const moveTouchId = useRef<number | null>(null)

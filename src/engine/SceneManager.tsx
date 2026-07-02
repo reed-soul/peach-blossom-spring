@@ -1,7 +1,6 @@
 import { lazy, Suspense, useEffect, useState, useCallback } from 'react'
 import { useGameStore, type SceneName } from '../store/useGameStore'
-
-const SCENE_ORDER: SceneName[] = ['menu', 'opening', 'forest', 'cave', 'village', 'ending']
+import { registerNavigator, unregisterNavigator } from './navigation'
 
 const scenes: Record<SceneName, React.LazyExoticComponent<React.ComponentType>> = {
   menu: lazy(() => import('../components/ui/MainMenu')),
@@ -9,6 +8,7 @@ const scenes: Record<SceneName, React.LazyExoticComponent<React.ComponentType>> 
   forest: lazy(() => import('../components/scenes/PeachForestScene')),
   cave: lazy(() => import('../components/scenes/CaveTransition')),
   village: lazy(() => import('../components/scenes/VillageScene')),
+  epilogue: lazy(() => import('../components/scenes/EpilogueScene')),
   ending: lazy(() => import('../components/scenes/EndingScene')),
   cinematic: lazy(() => import('../cinematic/CinematicExperience')),
 }
@@ -37,10 +37,8 @@ export function SceneManager() {
   )
 
   useEffect(() => {
-    ;(window as any).__sceneGoTo = goTo
-    return () => {
-      delete (window as any).__sceneGoTo
-    }
+    registerNavigator(goTo)
+    return () => unregisterNavigator()
   }, [goTo])
 
   const SceneComponent = scenes[currentScene]
@@ -60,11 +58,4 @@ export function SceneManager() {
   )
 }
 
-export function advanceScene() {
-  const { currentScene } = useGameStore.getState()
-  const idx = SCENE_ORDER.indexOf(currentScene)
-  if (idx >= 0 && idx < SCENE_ORDER.length - 1) {
-    const goTo = (window as any).__sceneGoTo
-    if (goTo) goTo(SCENE_ORDER[idx + 1])
-  }
-}
+export { advanceScene, navigateTo, goToMenu } from './navigation'

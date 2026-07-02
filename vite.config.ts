@@ -2,7 +2,10 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 
+const pagesBase = process.env.PAGES_BASE
+
 export default defineConfig({
+  base: pagesBase || '/',
   plugins: [react(), tailwindcss()],
   server: { host: true, port: 5173 },
   build: {
@@ -10,7 +13,6 @@ export default defineConfig({
       output: {
         manualChunks: {
           'three-core': ['three'],
-          'rapier': ['@react-three/rapier'],
           'r3f': ['@react-three/fiber', '@react-three/drei'],
         },
       },

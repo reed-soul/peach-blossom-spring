@@ -11,7 +11,17 @@ import {
   Rocks,
 } from '../../components/world/ProceduralTrees'
 import { PetalParticles } from '../../components/world/PetalParticles'
-import { GodRay } from '../../components/scenes/PeachForestScene'
+
+// 体积光（god ray）：半透圆锥模拟阳光光柱（Cursor 重构 PeachForestScene 后
+// 原 GodRay 导出已不存在，这里本地保留一份供 cinematic 使用）
+function GodRay({ position, target }: { position: [number, number, number]; target: [number, number, number] }) {
+  return (
+    <mesh position={position} lookAt={target}>
+      <coneGeometry args={[2.5, 15, 8, 1, true]} />
+      <meshBasicMaterial color={0xffe8c0} transparent opacity={0.05} side={THREE.DoubleSide} depthWrite={false} />
+    </mesh>
+  )
+}
 import { ForestDetails } from './ForestDetails'
 import { VillageDetails } from './VillageDetails'
 import { CaveAndSky } from './CaveAndSky'

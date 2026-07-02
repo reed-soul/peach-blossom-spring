@@ -1,4 +1,4 @@
-import { advanceScene } from '../../engine/SceneManager'
+import { advanceScene } from '../../engine/navigation'
 import { useGameStore } from '../../store/useGameStore'
 
 export default function MainMenu() {
