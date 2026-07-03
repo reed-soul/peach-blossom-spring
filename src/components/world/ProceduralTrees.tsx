@@ -1,6 +1,7 @@
 import { useRef, useMemo, useEffect } from 'react'
 import * as THREE from 'three'
 import { createNoise2D } from 'simplex-noise'
+import { PbrTextures } from '../../cinematic/textures/PbrTextures'
 
 const noise2D = createNoise2D()
 
@@ -113,6 +114,7 @@ function generateTree(
   const trunkMat = new THREE.MeshStandardMaterial({
     color: 0x5d4037,
     roughness: 1,
+    map: PbrTextures.wood([1, 3]),
   })
   const trunkMesh = new THREE.InstancedMesh(trunkGeo, trunkMat, trunkPositions.length)
   trunkPositions.forEach((m, i) => trunkMesh.setMatrixAt(i, m))

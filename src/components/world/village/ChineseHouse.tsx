@@ -1,5 +1,6 @@
 import { useMemo } from 'react'
 import * as THREE from 'three'
+import { PbrTextures } from '../../../cinematic/textures/PbrTextures'
 
 export function ChineseHouse({
   position,
@@ -12,15 +13,18 @@ export function ChineseHouse({
   scale?: number
   wallColor?: number
 }) {
+  const brickMap = useMemo(() => PbrTextures.brick([2, 1]), [])
+  const woodMap = useMemo(() => PbrTextures.wood([3, 3]), [])
+  const woodRough = useMemo(() => PbrTextures.woodRough([3, 3]), [])
   return (
     <group position={position} rotation={[0, rotation, 0]} scale={scale}>
       <mesh position={[0, 1.5, 0]} castShadow>
         <boxGeometry args={[4, 3, 3]} />
-        <meshStandardMaterial color={wallColor} roughness={0.9} />
+        <meshStandardMaterial color={wallColor} map={brickMap} roughness={0.92} />
       </mesh>
       <mesh position={[0, 3.8, 0]} castShadow>
         <coneGeometry args={[3.5, 2, 4]} />
-        <meshStandardMaterial color={0x2d2d2d} roughness={1} />
+        <meshStandardMaterial color={0x3a2820} map={woodMap} roughnessMap={woodRough} roughness={0.85} />
       </mesh>
       <mesh position={[0, 1.2, 1.51]}>
         <planeGeometry args={[1, 2.4]} />

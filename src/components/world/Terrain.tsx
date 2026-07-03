@@ -1,11 +1,13 @@
 import { useRef, useMemo } from 'react'
 import * as THREE from 'three'
 import { createNoise2D } from 'simplex-noise'
+import { PbrTextures } from '../../cinematic/textures/PbrTextures'
 
 const noise2D = createNoise2D()
 
 export function Terrain() {
   const meshRef = useRef<THREE.Mesh>(null)
+  const grassMap = useMemo(() => PbrTextures.grass([50, 50]), [])
 
   const { geometry, streamPoints } = useMemo(() => {
     const size = 120
@@ -102,7 +104,7 @@ export function Terrain() {
 
   return (
     <mesh ref={meshRef} geometry={geometry} receiveShadow>
-      <meshStandardMaterial vertexColors roughness={0.9} />
+      <meshStandardMaterial vertexColors map={grassMap} roughness={0.95} />
     </mesh>
   )
 }
