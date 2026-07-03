@@ -26,6 +26,23 @@ export function ActorGLB({ posRef, facingRef, actionRef, onStep }: ActorProps) {
   // 克隆场景避免污染缓存（多实例安全）
   const cloned = useMemo(() => scene.clone(true), [scene])
 
+  // 遍历让所有 mesh 投射/接收阴影 + 增强环境反射（消除"漂浮+塑料感"）
+  useEffect(() => {
+    cloned.traverse((o: any) => {
+      if (o.isMesh) {
+        o.castShadow = true
+        o.receiveShadow = true
+        if (o.material) {
+          if (Array.isArray(o.material)) {
+            o.material.forEach((m: any) => { if (m.envMapIntensity !== undefined) m.envMapIntensity = 1.2 })
+          } else if (o.material.envMapIntensity !== undefined) {
+            o.material.envMapIntensity = 1.2
+          }
+        }
+      }
+    })
+  }, [cloned])
+
   // 当前播放的 clip，用于切换
   const currentClip = useRef<string | null>(null)
   const stepPhase = useRef(0)

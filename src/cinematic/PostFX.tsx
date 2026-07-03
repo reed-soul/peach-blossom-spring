@@ -3,11 +3,9 @@ import { useThree, useFrame } from '@react-three/fiber'
 import {
   EffectComposer,
   Bloom,
-  DepthOfField,
   Vignette,
   HueSaturation,
   BrightnessContrast,
-  ToneMapping,
 } from '@react-three/postprocessing'
 import { BlendFunction, ToneMappingMode, KernelSize } from 'postprocessing'
 import * as THREE from 'three'
@@ -74,7 +72,6 @@ export function PostFX({ actIndex }: PostFXProps) {
     c.brightness = lerp(c.brightness, target.brightness, 0.03)
     c.contrast = lerp(c.contrast, target.contrast, 0.03)
     c.vignetteDark = lerp(c.vignetteDark, target.vignetteDark, 0.03)
-    c.dofFocus = lerp(c.dofFocus, target.dofFocus, 0.03)
   })
 
   // effect 实例的 ref，用于每帧直接改 uniform（props 不会因 ref 变化重渲染）
@@ -82,7 +79,6 @@ export function PostFX({ actIndex }: PostFXProps) {
   const hueRef = useRef<any>(null)
   const brightRef = useRef<any>(null)
   const vignetteRef = useRef<any>(null)
-  const dofRef = useRef<any>(null)
 
   useFrame(() => {
     const c = current.current
@@ -97,18 +93,10 @@ export function PostFX({ actIndex }: PostFXProps) {
       if (brightRef.current.uniforms?.contrast) brightRef.current.uniforms.contrast.value = c.contrast
     }
     if (vignetteRef.current?.uniforms?.darkness) vignetteRef.current.uniforms.darkness.value = c.vignetteDark
-    if (dofRef.current?.uniforms?.focusDistance) dofRef.current.uniforms.focusDistance.value = c.dofFocus
   })
 
   return (
     <EffectComposer multisampling={4}>
-      <DepthOfField
-        ref={dofRef}
-        focusDistance={current.current.dofFocus}
-        focalLength={0.05}
-        bokehScale={2.4}
-        height={480}
-      />
       <Bloom
         ref={bloomRef}
         intensity={current.current.bloomIntensity}
@@ -133,7 +121,6 @@ export function PostFX({ actIndex }: PostFXProps) {
         darkness={current.current.vignetteDark}
         blendFunction={BlendFunction.NORMAL}
       />
-      <ToneMapping mode={ToneMappingMode.ACES_FILMIC} />
     </EffectComposer>
   )
 }

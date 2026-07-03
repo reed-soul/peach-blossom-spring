@@ -211,9 +211,9 @@ export default function CinematicExperience() {
   return (
     <div className="w-full h-full relative bg-black">
       <Canvas
-        shadows
+        shadows="pcsoft"
         camera={{ position: [4, 4, 12], fov: 50, near: 0.1, far: 400 }}
-        gl={{ antialias: true }}
+        gl={{ antialias: true, powerPreference: 'high-performance' }}
       >
         <DirectorRunner onState={onState} />
         <CinematicWorld />

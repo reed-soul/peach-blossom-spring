@@ -45,7 +45,7 @@ function BrightLighting() {
   useEffect(() => {
     const prevFog = scene.fog
     const prevBg = scene.background
-    scene.fog = new THREE.Fog(new THREE.Color('#e8d8c0'), 30, 130)
+    scene.fog = new THREE.Fog(new THREE.Color('#e8d8c0'), 50, 180)
     scene.background = new THREE.Color('#dfe6f0')
     return () => {
       scene.fog = prevFog
@@ -55,19 +55,21 @@ function BrightLighting() {
 
   return (
     <>
-      {/* 主光：暖白阳光，高角度，柔和阴影 */}
+      {/* 主光：暖白阳光，高分辨率阴影（4096 + 收紧包围盒提升精度） */}
       <directionalLight
         position={[25, 40, 15]}
         intensity={1.6}
         color={0xfff2dc}
         castShadow
-        shadow-mapSize-width={2048}
-        shadow-mapSize-height={2048}
-        shadow-camera-left={-60}
-        shadow-camera-right={60}
-        shadow-camera-top={60}
-        shadow-camera-bottom={-60}
-        shadow-bias={-0.0005}
+        shadow-mapSize-width={4096}
+        shadow-mapSize-height={4096}
+        shadow-camera-left={-35}
+        shadow-camera-right={35}
+        shadow-camera-top={35}
+        shadow-camera-bottom={-35}
+        shadow-camera-near={1}
+        shadow-camera-far={120}
+        shadow-bias={-0.0002}
       />
       {/* 天光：明亮的天蓝半球光，照亮阴影区 */}
       <hemisphereLight args={[0xbfd8ff, 0x6b5a3a, 0.85]} />
@@ -116,7 +118,7 @@ export function CinematicWorld() {
       <BrightLighting />
 
       {/* 程序化环境贴图：给金属冠/玉佩提供反射（无外部 HDR，子 mesh 作 cubemap 源） */}
-      <Environment resolution={64} frames={1}>
+      <Environment resolution={256} frames={1}>
         {/* 上方天光（暖白） */}
         <mesh scale={[8, 8, 8]} position={[0, 6, 0]}>
           <sphereGeometry args={[1, 16, 16]} />
