@@ -3,7 +3,7 @@ import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 import type { ActorAction } from './types'
 import { applyWind, tickWindMaterials } from './WindShader'
-import { getCloudPattern, getBeltPattern } from './textures'
+import { getFabricPattern, getBeltPattern } from './textures'
 
 function lerpScalar(a: number, b: number, t: number): number {
   return a + (b - a) * t
@@ -117,19 +117,22 @@ export function ActorProcedural({ posRef, facingRef, actionRef, onStep }: ActorP
   )
   const mBoot = useToonMat('#241c16', gradient)
 
-  // 程序化纹理：用 emissiveMap 叠加云纹暗花（不改变 toon 颜色，仅微弱发光提暗纹）
+  // 程序化布料纹理：fabric map 给袍/袖/内衫加织物表面质感（告别纯色橡皮泥）
   useMemo(() => {
-    const cloud = getCloudPattern()
-    mRobe.emissive = new THREE.Color('#1a2a2a')
-    mRobe.emissiveMap = cloud
-    mRobe.emissiveIntensity = 0.12
+    const fabric = getFabricPattern()
+    mRobe.map = fabric
     mRobe.needsUpdate = true
+    mSleeve.map = fabric
+    mSleeve.needsUpdate = true
+    mInner.map = fabric
+    mInner.needsUpdate = true
+    // 腰带保留 emissiveMap 回纹暗花
     const belt = getBeltPattern()
     mBelt.emissive = new THREE.Color('#3a2810')
     mBelt.emissiveMap = belt
     mBelt.emissiveIntensity = 0.25
     mBelt.needsUpdate = true
-  }, [mRobe, mBelt])
+  }, [mRobe, mSleeve, mInner, mBelt])
   const mJade = useMemo(
     () => new THREE.MeshStandardMaterial({ color: '#5fa88a', metalness: 0.3, roughness: 0.4 }),
     [],
@@ -407,10 +410,10 @@ const tmpVec = new THREE.Vector3()
 
 // ───────── Actor 分发：优先用 GLB 模型，加载失败回退程序化 ─────────
 
-// 是否启用 GLB（可通过 ?glb=0 关闭调试）
+// 默认用程序化渔人（剪影符合古风渔人）；?glb 才启用 GLB（Soldier 违和，仅验证用）
 const GLB_ENABLED = (() => {
   if (typeof window === 'undefined') return false
-  return !new URLSearchParams(window.location.search).has('noglb')
+  return new URLSearchParams(window.location.search).has('glb')
 })()
 
 interface BoundaryProps {
