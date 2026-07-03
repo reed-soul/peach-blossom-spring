@@ -239,6 +239,65 @@ function playOneShot(name: string, volume = 0.3) {
   source.start()
 }
 
+// ───────── 预录旁白音频接口（电影模式用） ─────────
+
+// 当前正在播的旁白 source（供 cancelNarration 停止）
+let narrationSource: AudioBufferSourceNode | null = null
+
+async function loadNarration(id: string, url: string): Promise<boolean> {
+  try {
+    const c = getCtx()
+    const res = await fetch(url)
+    if (!res.ok) return false
+    const arr = await res.arrayBuffer()
+    buffers[id] = await c.decodeAudioData(arr)
+    return true
+  } catch {
+    return false
+  }
+}
+
+function playNarration(
+  id: string,
+  volume = 0.6,
+  hooks?: { onStart?: () => void; onEnd?: () => void },
+): boolean {
+  const c = getCtx()
+  const buf = buffers[id]
+  if (!buf || !masterGain) return false
+  // 停掉上一个旁白
+  stopNarration()
+  const source = c.createBufferSource()
+  source.buffer = buf
+  source.loop = false
+  const gain = c.createGain()
+  gain.gain.value = volume
+  source.connect(gain)
+  gain.connect(masterGain)
+  source.onended = () => {
+    if (narrationSource === source) narrationSource = null
+    hooks?.onEnd?.()
+  }
+  narrationSource = source
+  source.start()
+  hooks?.onStart?.()
+  return true
+}
+
+function stopNarration() {
+  if (narrationSource) {
+    try {
+      narrationSource.onended = null
+      narrationSource.stop()
+    } catch {}
+    narrationSource = null
+  }
+}
+
+function hasNarrationLoaded(id: string): boolean {
+  return !!buffers[id]
+}
+
 // ducking：旁白时压低总音量
 function duck(amount = 0.2, duration = 0.3) {
   const c = getCtx()
@@ -341,5 +400,10 @@ export function useAudio() {
     playOneShot,
     duck,
     unduck,
+    // 预录旁白音频接口（C2 旁白替代 Web Speech）
+    loadNarration,
+    playNarration,
+    stopNarration,
+    hasNarrationLoaded,
   }
 }

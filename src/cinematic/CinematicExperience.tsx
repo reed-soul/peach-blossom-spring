@@ -16,6 +16,7 @@ import {
   getNarrationEnabled,
   primeVoices,
   setDuckHooks,
+  setAudioPlayer,
 } from './Narrator'
 import { useAudio } from '../engine/AudioManager'
 import type { DirectorState, ActorAction } from './types'
@@ -44,9 +45,24 @@ function DirectorRunner({
       () => audioRef0.current.duck(0.18, 0.3),
       () => audioRef0.current.unduck(0.5),
     )
+    // 注入预录音频播放器（Narrator 优先用 mp3，降级 Web Speech）
+    setAudioPlayer({
+      playNarration: (id, vol, hooks) => audioRef0.current.playNarration(id, vol, hooks),
+      stopNarration: () => audioRef0.current.stopNarration(),
+      hasNarrationLoaded: (id) => audioRef0.current.hasNarrationLoaded(id),
+    })
+    // 预加载全部 25 段旁白 mp3（异步，不阻塞渲染）
+    for (let ai = 0; ai < ACTS.length; ai++) {
+      for (let bi = 0; bi < ACTS[ai].beats.length; bi++) {
+        if (!ACTS[ai].beats[bi].narration) continue
+        const id = `${ai + 1}-${bi + 1}`
+        audioRef0.current.loadNarration(id, `${import.meta.env.BASE_URL}narration/${id}.mp3`)
+      }
+    }
     return () => {
       delete (window as any).__cinematicRestart
       setDuckHooks(() => {}, () => {})
+      setAudioPlayer(null)
     }
   }, [])
 
@@ -80,7 +96,11 @@ function DirectorRunner({
       if (s.actIndex !== lastBeat.current.a || s.beatIndex !== lastBeat.current.b) {
         lastBeat.current = { a: s.actIndex, b: s.beatIndex }
         const a = audioRef.current
-        if (s.narrationTrigger) narratorSpeak(s.narrationTrigger)
+        if (s.narrationTrigger) {
+          // narrationId 约定：<actIndex+1>-<beatIndex+1>，对应 public/narration/<id>.mp3
+          const narrationId = `${s.actIndex + 1}-${s.beatIndex + 1}`
+          narratorSpeak(narrationId, s.narrationTrigger)
+        }
         // 幕首拍：切整个环境层组合
         if (s.beatIndex === 0) {
           if (s.actIndex <= 1) {

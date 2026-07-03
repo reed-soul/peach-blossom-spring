@@ -1,13 +1,25 @@
-// 浏览器原生中文语音旁白。不支持时静默降级。
+// 旁白：优先用预录音频（macOS say 生成的 mp3），降级到浏览器 Web Speech。
 
 let cachedVoice: SpeechSynthesisVoice | null | undefined
 let enabled = true
-const rate = 0.92 // 略慢，便于课堂跟读
+const rate = 0.92
 const pitch = 1.0
 
-// ducking 钩子：旁白开始/结束时回调 AudioManager 压低/恢复环境音
+// ducking 钩子
 let onSpeakStart: (() => void) | null = null
 let onSpeakEnd: (() => void) | null = null
+
+// 预录音频播放器（由 CinematicExperience 注入 AudioManager 的接口）
+interface AudioPlayer {
+  playNarration: (id: string, volume: number, hooks: { onStart?: () => void; onEnd?: () => void }) => boolean
+  stopNarration: () => void
+  hasNarrationLoaded: (id: string) => boolean
+}
+let audioPlayer: AudioPlayer | null = null
+
+export function setAudioPlayer(player: AudioPlayer | null) {
+  audioPlayer = player
+}
 
 export function setDuckHooks(start: () => void, end: () => void) {
   onSpeakStart = start
@@ -26,6 +38,8 @@ function pickVoice(): SpeechSynthesisVoice | null {
 }
 
 export function isNarrationSupported(): boolean {
+  // 预录音频可用 或 Web Speech 可用
+  if (audioPlayer) return true
   return typeof window !== 'undefined' && 'speechSynthesis' in window
 }
 
@@ -38,8 +52,25 @@ export function getNarrationEnabled(): boolean {
   return enabled
 }
 
-export function speak(text: string) {
+/**
+ * 播放旁白。优先用预录音频（id 对应 public/narration/<id>.mp3），
+ * 音频未加载则降级到 Web Speech 朗读 text。
+ */
+export function speak(id: string, text: string) {
   if (!enabled) return
+  // 优先预录音频
+  if (audioPlayer && audioPlayer.hasNarrationLoaded(id)) {
+    audioPlayer.playNarration(id, 0.6, {
+      onStart: () => onSpeakStart?.(),
+      onEnd: () => onSpeakEnd?.(),
+    })
+    return
+  }
+  // 降级：Web Speech
+  speakWithWebSpeech(text)
+}
+
+function speakWithWebSpeech(text: string) {
   if (typeof window === 'undefined' || !window.speechSynthesis) return
   try {
     const u = new SpeechSynthesisUtterance(text)
@@ -48,7 +79,6 @@ export function speak(text: string) {
     u.pitch = pitch
     const v = pickVoice()
     if (v) u.voice = v
-    // ducking 联动：开始压低、结束恢复
     u.onstart = () => onSpeakStart?.()
     u.onend = () => onSpeakEnd?.()
     u.onerror = () => onSpeakEnd?.()
@@ -59,6 +89,7 @@ export function speak(text: string) {
 }
 
 export function cancelNarration() {
+  if (audioPlayer) audioPlayer.stopNarration()
   if (typeof window !== 'undefined' && window.speechSynthesis) {
     try {
       window.speechSynthesis.cancel()
@@ -67,7 +98,7 @@ export function cancelNarration() {
   onSpeakEnd?.()
 }
 
-// 预加载语音列表（某些浏览器异步加载 voices）
+// 预加载语音列表（Web Speech 降级用）
 export function primeVoices() {
   if (typeof window === 'undefined' || !window.speechSynthesis) return
   window.speechSynthesis.getVoices()
