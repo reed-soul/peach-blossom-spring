@@ -1,4 +1,4 @@
-import { Suspense, useEffect } from 'react'
+import { Suspense, useEffect, useMemo } from 'react'
 import { useThree } from '@react-three/fiber'
 import { Environment } from '@react-three/drei'
 import * as THREE from 'three'
@@ -15,8 +15,20 @@ import { PetalParticles } from '../../components/world/PetalParticles'
 // 体积光（god ray）：半透圆锥模拟阳光光柱（Cursor 重构 PeachForestScene 后
 // 原 GodRay 导出已不存在，这里本地保留一份供 cinematic 使用）
 function GodRay({ position, target }: { position: [number, number, number]; target: [number, number, number] }) {
+  // 圆锥默认朝 +y，计算朝向 target 的旋转
+  const dir = useMemo(() => {
+    const d = new THREE.Vector3(...target).sub(new THREE.Vector3(...position))
+    const len = d.length()
+    if (len < 0.01) return { rot: [0, 0, 0] as [number, number, number], mid: position }
+    // 朝向方向 → 旋转（圆锥轴 +y 对齐到 dir）
+    const up = new THREE.Vector3(0, 1, 0)
+    const quat = new THREE.Quaternion().setFromUnitVectors(up, d.clone().normalize())
+    const e = new THREE.Euler().setFromQuaternion(quat)
+    const mid = new THREE.Vector3(...position).add(d.clone().multiplyScalar(0.5))
+    return { rot: [e.x, e.y, e.z] as [number, number, number], mid: [mid.x, mid.y, mid.z] as [number, number, number] }
+  }, [position, target])
   return (
-    <mesh position={position} lookAt={target}>
+    <mesh position={dir.mid} rotation={dir.rot}>
       <coneGeometry args={[2.5, 15, 8, 1, true]} />
       <meshBasicMaterial color={0xffe8c0} transparent opacity={0.05} side={THREE.DoubleSide} depthWrite={false} />
     </mesh>
