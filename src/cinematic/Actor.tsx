@@ -14,10 +14,10 @@ function lerpScalar(a: number, b: number, t: number): number {
 // 飘动用顶点着色器（onBeforeCompile），保持 toon 卡通渲染
 // ─────────────────────────────────────────────────────────────
 
-// 3 级明暗的 toon 渐变贴图
+// 5 级明暗的 toon 渐变贴图（比 3 级更柔和，告别硬边卡通）
 function useGradientMap() {
   return useMemo(() => {
-    const data = new Uint8Array([90, 170, 245])
+    const data = new Uint8Array([60, 120, 170, 215, 250])
     const tex = new THREE.DataTexture(data, data.length, 1, THREE.RedFormat)
     tex.needsUpdate = true
     tex.minFilter = THREE.NearestFilter
@@ -45,7 +45,7 @@ function Outline({
   return (
     <mesh scale={[scale, scale, scale]} renderOrder={-1}>
       {children}
-      <meshBasicMaterial color="#15110c" side={THREE.BackSide} />
+      <meshBasicMaterial color="#2a1a10" side={THREE.BackSide} />
     </mesh>
   )
 }
@@ -138,21 +138,21 @@ export function ActorProcedural({ posRef, facingRef, actionRef, onStep }: ActorP
 
   // 飘动部件的描边材质（黑色背面 + 同样的风参数，确保描边跟随本体飘动）
   const mRobeOutline = useMemo(() => {
-    const m = new THREE.MeshBasicMaterial({ color: '#15110c', side: THREE.BackSide })
+    const m = new THREE.MeshBasicMaterial({ color: '#2a1a10', side: THREE.BackSide })
     applyWind(m, { axis: 'y-', pivot: 0.55, amount: 0.14, speed: 1.1, phase: 0.0, swayX: 1.0, swayZ: 0.5 })
     return m
   }, [])
   const mSleeveOutline = useMemo(() => {
     // 袖子描边：无风（袖子靠 group 旋转摆动）
-    return new THREE.MeshBasicMaterial({ color: '#15110c', side: THREE.BackSide })
+    return new THREE.MeshBasicMaterial({ color: '#2a1a10', side: THREE.BackSide })
   }, [])
   const mSashOutline = useMemo(() => {
-    const m = new THREE.MeshBasicMaterial({ color: '#15110c', side: THREE.BackSide })
+    const m = new THREE.MeshBasicMaterial({ color: '#2a1a10', side: THREE.BackSide })
     applyWind(m, { axis: 'y-', pivot: 0.5, amount: 0.22, speed: 1.4, phase: 1.2, swayX: 1.2, swayZ: 0.7 })
     return m
   }, [])
   const mHairOutline = useMemo(() => {
-    const m = new THREE.MeshBasicMaterial({ color: '#15110c', side: THREE.BackSide })
+    const m = new THREE.MeshBasicMaterial({ color: '#2a1a10', side: THREE.BackSide })
     applyWind(m, { axis: 'y-', pivot: 1.55, amount: 0.1, speed: 0.9, phase: 2.4, swayX: 0.8, swayZ: 0.5 })
     return m
   }, [])
@@ -314,7 +314,7 @@ export function ActorProcedural({ posRef, facingRef, actionRef, onStep }: ActorP
         </mesh>
         <mesh scale={[1.06, 1, 1.06]} position={[0, 0.78, 0]}>
           <cylinderGeometry args={[0.45, 0.45, 0.16, 16]} />
-          <meshBasicMaterial color="#15110c" side={THREE.BackSide} />
+          <meshBasicMaterial color="#2a1a10" side={THREE.BackSide} />
         </mesh>
 
         {/* ===== 飘带（左右，本体+描边都带风） ===== */}

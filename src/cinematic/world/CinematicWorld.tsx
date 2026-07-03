@@ -75,8 +75,10 @@ function BrightLighting() {
       <hemisphereLight args={[0xbfd8ff, 0x6b5a3a, 0.85]} />
       {/* 环境补光，避免纯黑 */}
       <ambientLight intensity={0.35} />
-      {/* 逆光轮廓：让角色从背景中分离（仙侠感） */}
-      <directionalLight position={[-15, 20, -25]} intensity={0.5} color={0xffd8a0} />
+      {/* 逆光轮廓：让角色从背景中分离（仙侠感），增强为 rim light */}
+      <directionalLight position={[-15, 20, -25]} intensity={0.7} color={0xffd8a0} />
+      {/* 青色侧补光：冷暖对比增加立体感（呼应青衫），让角色侧面有层次 */}
+      <directionalLight position={[-20, 8, 15]} intensity={0.35} color={0x6a8eaa} />
     </>
   )
 }
