@@ -28,6 +28,9 @@ function bindExternals(story: Story) {
   story.BindExternalFunction('set_ending', (ending: string) => {
     useGameStore.getState().setEnding(ending)
   })
+  story.BindExternalFunction('mark_arc_complete', (name: string) => {
+    useGameStore.getState().completeArc(name)
+  })
 }
 
 export function createVillageStory(): Story {
@@ -75,8 +78,8 @@ function readStoryStep(story: Story): DialogueStep {
   }
 }
 
-export function getVisitedNpcCount(): number {
-  return useGameStore.getState().storyState.visitedNPCs.length
+export function getCompletedArcCount(): number {
+  return useGameStore.getState().storyState.completedArcs.length
 }
 
 export { KNOT_BY_NPC }

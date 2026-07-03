@@ -6,7 +6,10 @@ import { resolveEndingContent } from '../../narrative/endingStory'
 export default function EndingScene() {
   const { storyState } = useGameStore()
   const isReturn = storyState.currentEnding === 'return'
-  const content = useMemo(() => resolveEndingContent(), [storyState.currentEnding, storyState.choicesMade, storyState.visitedNPCs])
+  const content = useMemo(
+    () => resolveEndingContent(),
+    [storyState.currentEnding, storyState.choicesMade, storyState.visitedNPCs, storyState.completedArcs],
+  )
 
   return (
     <div
@@ -41,6 +44,15 @@ export default function EndingScene() {
         <p className="text-xl leading-relaxed mb-6" style={{ color: '#d4c5a9', lineHeight: '2.2' }}>
           {content.quote}
         </p>
+        {content.memories.length > 0 && (
+          <div className="mb-6 space-y-2">
+            {content.memories.map((memory, i) => (
+              <p key={i} className="text-sm italic" style={{ color: '#8b7355', lineHeight: '1.9', opacity: 0.75 }}>
+                {memory}
+              </p>
+            ))}
+          </div>
+        )}
         <p className="text-lg leading-relaxed mb-12" style={{ color: '#8b7355', lineHeight: '2', opacity: 0.7 }}>
           {content.body}
         </p>

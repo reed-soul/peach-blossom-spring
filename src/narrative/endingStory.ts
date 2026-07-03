@@ -10,6 +10,12 @@ function bindEndingExternals(story: Story) {
   story.BindExternalFunction('has_choice', (name: string) => {
     return useGameStore.getState().storyState.choicesMade.includes(name)
   })
+  story.BindExternalFunction('visited_npc', (name: string) => {
+    return useGameStore.getState().storyState.visitedNPCs.includes(name)
+  })
+  story.BindExternalFunction('completed_arc_count', () => {
+    return useGameStore.getState().storyState.completedArcs.length
+  })
 }
 
 export function resolveEndingContent(): TaggedSections {
