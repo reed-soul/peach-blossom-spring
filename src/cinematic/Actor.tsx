@@ -1,4 +1,4 @@
-import { useRef, useMemo } from 'react'
+import { useRef, useMemo, Component, ReactNode } from 'react'
 import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 import type { ActorAction } from './types'
@@ -83,7 +83,7 @@ export interface ActorProps {
   onStep?: () => void
 }
 
-export function Actor({ posRef, facingRef, actionRef, onStep }: ActorProps) {
+export function ActorProcedural({ posRef, facingRef, actionRef, onStep }: ActorProps) {
   const root = useRef<THREE.Group>(null)
   const body = useRef<THREE.Group>(null)
   const neck = useRef<THREE.Group>(null) // 分层：颈→头（头部可独立微点，分层呼吸）
@@ -404,3 +404,43 @@ export function Actor({ posRef, facingRef, actionRef, onStep }: ActorProps) {
 }
 
 const tmpVec = new THREE.Vector3()
+
+// ───────── Actor 分发：优先用 GLB 模型，加载失败回退程序化 ─────────
+
+// 是否启用 GLB（可通过 ?glb=0 关闭调试）
+const GLB_ENABLED = (() => {
+  if (typeof window === 'undefined') return false
+  return !new URLSearchParams(window.location.search).has('noglb')
+})()
+
+interface BoundaryProps {
+  fallback: ReactNode
+  children: ReactNode
+}
+interface BoundaryState {
+  hasError: boolean
+}
+class ActorBoundary extends Component<BoundaryProps, BoundaryState> {
+  state: BoundaryState = { hasError: false }
+  static getDerivedStateFromError() {
+    return { hasError: true }
+  }
+  componentDidCatch(err: unknown) {
+    console.warn('[Actor] GLB 加载失败，回退程序化角色:', err)
+  }
+  render() {
+    return this.state.hasError ? this.props.fallback : this.props.children
+  }
+}
+
+import { ActorGLB } from './ActorGLB'
+// 对外组件：GLB 优先（ErrorBoundary 兜底），失败回退 ActorProcedural
+export function Actor(props: ActorProps) {
+  if (!GLB_ENABLED) return <ActorProcedural {...props} />
+  return (
+    <ActorBoundary fallback={<ActorProcedural {...props} />}>
+      <ActorGLB {...props} />
+    </ActorBoundary>
+  )
+}
+
