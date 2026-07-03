@@ -4,20 +4,21 @@ import { useGLTF, useAnimations } from '@react-three/drei'
 import * as THREE from 'three'
 import type { ActorAction } from './types'
 import type { ActorProps } from './Actor'
+import { getTerrainHeight } from '../components/world/Terrain'
 
 const MODEL_URL = `${import.meta.env.BASE_URL}models/fisherman.glb`
 
-// Soldier.glb 的动画名
+// Xbot.glb 动画名（小写）
 const CLIP_FOR: Record<ActorAction, string> = {
-  idle: 'Idle',
-  walk: 'Walk',
-  enter: 'Walk',
-  row: 'Idle',
-  sit: 'Idle',
+  idle: 'idle',
+  walk: 'walk',
+  enter: 'walk',
+  row: 'idle',
+  sit: 'idle',
 }
 
-// ActorGLB：用预录 GLB 模型（Soldier，CC0）+ 骨骼动画。
-// 外部契约与程序化 Actor 完全一致（posRef/facingRef/actionRef/onStep）。
+// ActorGLB：用 Xbot 人形骨架（CC0）+ 骨骼动画。
+// Xbot 是清晰的真人形（有面部/四肢/步态），比程序化色块和 Soldier 都好。
 export function ActorGLB({ posRef, facingRef, actionRef, onStep }: ActorProps) {
   const group = useRef<THREE.Group>(null)
   const { scene, animations } = useGLTF(MODEL_URL) as any
@@ -50,10 +51,10 @@ export function ActorGLB({ posRef, facingRef, actionRef, onStep }: ActorProps) {
 
   // 进入时播 idle
   useEffect(() => {
-    const idle = actions['Idle']
+    const idle = actions['idle']
     if (idle) {
       idle.reset().fadeIn(0.3).play()
-      currentClip.current = 'Idle'
+      currentClip.current = 'idle'
     }
     return () => {
       // 清理：停所有
@@ -64,8 +65,10 @@ export function ActorGLB({ posRef, facingRef, actionRef, onStep }: ActorProps) {
   useFrame((_, delta) => {
     const g = group.current
     if (!g) return
-    const [x, y, z] = posRef.current
-    g.position.set(x, y, z)
+    const [x, , z] = posRef.current
+    // y 跟随地形高度（修穿地），略抬高避免脚陷入地表
+    const groundY = getTerrainHeight(x, z)
+    g.position.set(x, groundY, z)
 
     // 朝向：Soldier 默认朝 +z，我们 facing=π 朝 -z，故加 Math.PI 对齐
     // 平滑跟随
@@ -77,7 +80,7 @@ export function ActorGLB({ posRef, facingRef, actionRef, onStep }: ActorProps) {
 
     // 动作切换
     const action = actionRef.current
-    const wantClip = CLIP_FOR[action] || 'Idle'
+    const wantClip = CLIP_FOR[action] || 'idle'
     if (currentClip.current !== wantClip && actions[wantClip]) {
       const prev = actions[currentClip.current!]
       const next = actions[wantClip]
@@ -98,7 +101,7 @@ export function ActorGLB({ posRef, facingRef, actionRef, onStep }: ActorProps) {
   })
 
   return (
-    <group ref={group} rotation={[0, Math.PI, 0]} scale={1.2}>
+    <group ref={group} rotation={[0, Math.PI, 0]} scale={1.8}>
       <primitive object={cloned} />
     </group>
   )

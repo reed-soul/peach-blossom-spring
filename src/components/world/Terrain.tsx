@@ -5,6 +5,40 @@ import { PbrTextures } from '../../cinematic/textures/PbrTextures'
 
 const noise2D = createNoise2D()
 
+// 溪流路径在 z 处的 x 坐标（与 streamPath 生成逻辑一致）
+export function getStreamX(z: number, size = 120): number {
+  const t = (z + size / 2) / size
+  return Math.sin(t * Math.PI * 3) * 6 + Math.sin(t * Math.PI * 7) * 2
+}
+
+// 采样地形高度（与 Terrain 几何生成逻辑一致，供 Actor 地面跟随用）
+export function getTerrainHeight(x: number, z: number, size = 120): number {
+  // Terrain mesh 只覆盖 z ∈ [-60, +60]；村庄区域（z<-65）是平地 y=0
+  if (z < -size / 2 || z > size / 2 || Math.abs(x) > size / 2) return 0
+  let height = 0
+  height += noise2D(x * 0.02, z * 0.02) * 6
+  height += noise2D(x * 0.05, z * 0.05) * 2
+  height += noise2D(x * 0.1, z * 0.1) * 0.5
+
+  // 河道压平
+  const streamX = getStreamX(z, size)
+  const dx = x - streamX
+  const dist = Math.abs(dx)
+  if (dist < 4) {
+    const streamFactor = Math.max(0, 1 - dist / 4)
+    height = THREE.MathUtils.lerp(height, -0.8, streamFactor * streamFactor)
+    if (dist < 2.5) {
+      height = THREE.MathUtils.lerp(height, -0.6, (1 - dist / 2.5) * 0.8)
+    }
+  }
+
+  // 洞口坡度
+  const caveInfluence = Math.max(0, 1 - Math.abs(z - -50) / 20) * 2
+  height += caveInfluence
+
+  return height
+}
+
 export function Terrain() {
   const meshRef = useRef<THREE.Mesh>(null)
   const grassMap = useMemo(() => PbrTextures.grass([50, 50]), [])

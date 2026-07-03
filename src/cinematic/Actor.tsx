@@ -410,10 +410,10 @@ const tmpVec = new THREE.Vector3()
 
 // ───────── Actor 分发：优先用 GLB 模型，加载失败回退程序化 ─────────
 
-// 默认用程序化渔人（剪影符合古风渔人）；?glb 才启用 GLB（Soldier 违和，仅验证用）
+// 默认用 GLB（Xbot 人形骨架，清晰可辨识）；?noglb 回退程序化（仅调试用）
 const GLB_ENABLED = (() => {
   if (typeof window === 'undefined') return false
-  return new URLSearchParams(window.location.search).has('glb')
+  return !new URLSearchParams(window.location.search).has('noglb')
 })()
 
 interface BoundaryProps {
