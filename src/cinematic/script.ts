@@ -61,6 +61,7 @@ export const ACTS: Act[] = [
         caption: '中无杂树，芳草鲜美，落英缤纷。',
         narration: '林中没有别的树，芳草鲜嫩美丽，落花纷纷飘落。',
         sfx: 'wind',
+        cut: true,
       },
       {
         at: 13,
@@ -70,6 +71,7 @@ export const ACTS: Act[] = [
         actor: { pos: [0, 0, -28], facing: Math.PI * 0.85, action: 'walk' },
         caption: '渔人甚异之，复前行，欲穷其林。',
         narration: '渔人十分惊异，又向前走，想要走到这片林子的尽头。',
+        cut: true,
       },
       {
         at: 25,
@@ -79,6 +81,7 @@ export const ACTS: Act[] = [
         actor: { pos: [0, 0, -48], facing: Math.PI, action: 'walk' },
         caption: '林尽水源，便得一山。',
         narration: '桃花林在溪水发源处到了尽头，眼前出现一座山。',
+        cut: true,
       },
     ],
   },
@@ -95,6 +98,7 @@ export const ACTS: Act[] = [
         caption: '山有小口，仿佛若有光。',
         narration: '山上有个小洞口，洞里隐隐约约好像有光亮。',
         sfx: 'chime',
+        cut: true,
       },
       {
         at: 11,
@@ -130,6 +134,7 @@ export const ACTS: Act[] = [
         actor: { pos: [0, 0, -80], facing: Math.PI, action: 'walk' },
         caption: '土地平旷，屋舍俨然，有良田美池桑竹之属。',
         narration: '只见土地平坦宽广，房屋整整齐齐，有肥沃的田地、美丽的池塘和桑树竹子之类。',
+        cut: true,
       },
       {
         at: 27,
@@ -139,6 +144,7 @@ export const ACTS: Act[] = [
         actor: { pos: [0, 0, -86], facing: Math.PI, action: 'idle' },
         caption: '阡陌交通，鸡犬相闻。',
         narration: '田间小路交错相通，村落间能互相听到鸡鸣狗叫的声音。',
+        cut: true,
       },
     ],
   },
@@ -154,6 +160,7 @@ export const ACTS: Act[] = [
         actor: { pos: [0, 0, -90], facing: Math.PI * 0.7, action: 'idle' },
         caption: '其中往来种作，男女衣着，悉如外人。',
         narration: '里面的人来来往往耕种劳作，男女的穿着打扮，完全和外面的人一样。',
+        cut: true,
       },
       {
         at: 13,
@@ -163,12 +170,15 @@ export const ACTS: Act[] = [
         actor: { pos: [0, 0, -92], facing: 0, action: 'idle' },
         caption: '见渔人，乃大惊，问所从来。具答之。',
         narration: '村人见到渔人，竟然十分惊讶，问他是从哪里来的。渔人详细地回答了他们。',
+        cut: true,
       },
       {
         at: 26,
         duration: 22,
         // 环绕特写→拉远收尾：渔人落座设宴，镜头缓缓环绕后拉远，余韵悠长
         camera: { pos: [4.5, 3.2, -89], lookAt: [0, 1.4, -92], fov: 42 },
+        // dolly：22s 内从右侧缓慢环绕到左侧并微推近（设宴的悠长余韵）
+        camEnd: { pos: [-4, 2.8, -90], lookAt: [0, 1.5, -91], fov: 38 },
         actor: { pos: [0, 0, -90], facing: 0, action: 'sit' },
         caption: '便要还家，设酒杀鸡作食。此中人语云：“不足为外人道也。”',
         narration: '村人便邀请他回家，摆酒杀鸡做饭来款待他。村里的人嘱咐说：这里的事，不值得对外面的人说啊。',
@@ -190,6 +200,7 @@ export const ACTS: Act[] = [
         actor: { pos: [0, 0, -90], facing: 0, action: 'sit' },
         caption: '黄发垂髫，并怡然自乐。',
         narration: '老人和小孩，都充满喜悦之情，自得其乐。',
+        cut: true,
       },
       {
         at: 13,
@@ -199,6 +210,7 @@ export const ACTS: Act[] = [
         actor: { pos: [0, 0, -90], facing: 0, action: 'sit' },
         caption: '村中闻有此人，咸来问讯。',
         narration: '村里的人听说来了这么一个人，都来打听消息。',
+        cut: true,
       },
       {
         at: 27,
@@ -214,6 +226,8 @@ export const ACTS: Act[] = [
         duration: 18,
         // 最经典名句：特写渔人，慢推，给足停留
         camera: { pos: [2, 2.0, -94], lookAt: [0, 1.7, -91], fov: 34 },
+        // dolly in：18s 内缓慢推近到面部特写，强调'不知有汉无论魏晋'的震撼
+        camEnd: { pos: [0.8, 1.8, -92], lookAt: [0, 1.75, -91], fov: 30 },
         actor: { pos: [0, 0, -90], facing: 0, action: 'sit' },
         caption: '问今是何世，乃不知有汉，无论魏晋。此人一一为具言所闻，皆叹惋。',
         narration: '他们问现在是什么朝代，竟然不知道有过汉朝，更不用说魏晋了。渔人把自己知道的一一详尽地告诉他们，他们都感叹惋惜。',
@@ -282,6 +296,7 @@ export const ACTS: Act[] = [
         actor: { pos: [0, 0, -18], facing: Math.PI, action: 'idle' },
         caption: '南阳刘子骥，高尚士也，闻之，欣然规往。',
         narration: '南阳人刘子骥，是个高洁的隐士，听说了这件事，高兴地计划前往。',
+        cut: true,
       },
       {
         at: 15,
@@ -297,6 +312,8 @@ export const ACTS: Act[] = [
         duration: 18,
         // 后遂无问津者：固定长镜头推向空山，actor 远去，cut 收尾
         camera: { pos: [0, 3.5, -5], lookAt: [0, 2, -30], fov: 44 },
+        // dolly：18s 内缓慢推向远方空山，actor 渐小，寂灭收尾
+        camEnd: { pos: [0, 3.2, -8], lookAt: [0, 2, -42], fov: 40 },
         actor: { pos: [0, 0, -28], facing: Math.PI, action: 'walk' },
         caption: '后遂无问津者。',
         narration: '从此以后，就再也没有人去探寻桃花源了。',

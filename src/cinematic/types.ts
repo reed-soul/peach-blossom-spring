@@ -20,6 +20,7 @@ export interface Beat {
   at: number // 秒，相对所在 act 的起点
   duration: number // 秒
   camera: CameraKey
+  camEnd?: CameraKey // beat 内相机推拉终点：rawT>0.2 后从 camera 缓慢 lerp 到 camEnd（dolly in）
   actor?: ActorKey
   caption?: string
   narration?: string

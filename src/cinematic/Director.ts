@@ -119,14 +119,16 @@ export class Director {
     const beatIndex = act.beats.length - 1
     const beat = act.beats[beatIndex]
     const lastActor = this.resolveActor(actIndex, beatIndex)
+    // 末帧：若有 camEnd（dolly 终点），取 camEnd（推拉已完成）
+    const finalCam = beat.camEnd ?? beat.camera
     return {
       actIndex,
       beatIndex,
       beatProgress: 1,
       camera: {
-        pos: beat.camera.pos,
-        lookAt: beat.camera.lookAt,
-        fov: beat.camera.fov ?? DEFAULT_FOV,
+        pos: finalCam.pos,
+        lookAt: finalCam.lookAt,
+        fov: finalCam.fov ?? DEFAULT_FOV,
       },
       actor: lastActor,
       caption: beat.caption ?? null,
@@ -192,13 +194,21 @@ export class Director {
     const isCut = beat.cut === true
     const t = isCut ? 1 : ease(Math.max(0, Math.min(1, rawT)))
 
-    // 相机：cut 时直接取目标；否则从 prevBeat 末态插值
+    // 相机：cut 时直接取目标；否则从 prevBeat 末态插值到 beat.camera(camStart)
     const prevCam = isCut ? beat.camera : (prevBeat?.camera ?? beat.camera)
-    const camPos = isCut ? beat.camera.pos : lerpVec3(prevCam.pos, beat.camera.pos, t)
-    const camLook = isCut ? beat.camera.lookAt : lerpVec3(prevCam.lookAt, beat.camera.lookAt, t)
+    // 若 beat 提供 camEnd，实现 beat 内 dolly 推拉：
+    //   rawT ∈ [0, 0.2] 进入过渡（prevCam → camStart）
+    //   rawT ∈ [0.2, 1] 推拉阶段（camStart → camEnd，独立慢 ease）
+    const hasDolly = !isCut && !!beat.camEnd
+    const dollyT = hasDolly ? ease(Math.max(0, Math.min(1, (rawT - 0.2) / 0.8))) : 0
+    const camTarget = hasDolly && rawT > 0.2 ? beat.camEnd! : beat.camera
+    const camFrom = hasDolly && rawT > 0.2 ? beat.camera : prevCam
+    const camLerpT = hasDolly && rawT > 0.2 ? dollyT : t
+    const camPos = isCut ? beat.camera.pos : lerpVec3(camFrom.pos, camTarget.pos, camLerpT)
+    const camLook = isCut ? beat.camera.lookAt : lerpVec3(camFrom.lookAt, camTarget.lookAt, camLerpT)
     const camFov = isCut
       ? (beat.camera.fov ?? DEFAULT_FOV)
-      : lerp(prevCam.fov ?? DEFAULT_FOV, beat.camera.fov ?? DEFAULT_FOV, t)
+      : lerp(camFrom.fov ?? DEFAULT_FOV, camTarget.fov ?? DEFAULT_FOV, camLerpT)
 
     // actor：从 prevActor 末态插值到 curActor
     const actorPos = lerpVec3(prevActor.pos, curActor.pos, t)
