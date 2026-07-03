@@ -4,6 +4,7 @@ export type SceneName = 'menu' | 'opening' | 'forest' | 'cave' | 'village' | 'ep
 
 interface StoryState {
   visitedNPCs: string[]
+  completedArcs: string[]
   choicesMade: string[]
   currentEnding: string | null
 }
@@ -16,6 +17,7 @@ interface GameState {
   setScene: (scene: SceneName) => void
   updatePosition: (pos: [number, number, number]) => void
   visitNPC: (name: string) => void
+  completeArc: (name: string) => void
   addChoice: (choice: string) => void
   setEnding: (ending: string) => void
   setTransition: (t: boolean) => void
@@ -25,7 +27,7 @@ interface GameState {
 const initialState = {
   currentScene: 'menu' as SceneName,
   playerPosition: [0, 1.5, 0] as [number, number, number],
-  storyState: { visitedNPCs: [], choicesMade: [], currentEnding: null },
+  storyState: { visitedNPCs: [], completedArcs: [], choicesMade: [], currentEnding: null },
   transition: false,
 }
 
@@ -40,6 +42,15 @@ export const useGameStore = create<GameState>((set) => ({
         visitedNPCs: s.storyState.visitedNPCs.includes(name)
           ? s.storyState.visitedNPCs
           : [...s.storyState.visitedNPCs, name],
+      },
+    })),
+  completeArc: (name) =>
+    set((s) => ({
+      storyState: {
+        ...s.storyState,
+        completedArcs: s.storyState.completedArcs.includes(name)
+          ? s.storyState.completedArcs
+          : [...s.storyState.completedArcs, name],
       },
     })),
   addChoice: (choice) =>

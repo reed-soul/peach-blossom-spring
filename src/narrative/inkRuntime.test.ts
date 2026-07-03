@@ -12,6 +12,7 @@ describe('parseTaggedSections', () => {
       quote: '南阳刘子骥，高尚士也。',
       body: '你回到了尘世。',
       footer: '桃花源，终究只存在于记忆之中。',
+      memories: [],
     })
   })
 })

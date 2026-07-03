@@ -35,7 +35,8 @@ function GodRay({ position, target }: { position: [number, number, number]; targ
   )
 }
 import { ForestDetails } from './ForestDetails'
-import { VillageDetails } from './VillageDetails'
+import { VillageDetails } from '../../components/world/village/VillageDetails'
+import { ChineseHouse, ChineseLantern, VillagePeachTrees } from '../../components/world/village'
 import { CaveAndSky } from './CaveAndSky'
 
 // 电影模式固定明亮的暖调光照（不走 DayNightCycle 的昼夜变化，保证全程氛围稳定）
@@ -78,50 +79,7 @@ function BrightLighting() {
   )
 }
 
-// 村庄房屋（与 VillageScene 风格一致，无交互）
-function VillageHouse({
-  position,
-  rotation = 0,
-  scale = 1,
-}: {
-  position: [number, number, number]
-  rotation?: number
-  scale?: number
-}) {
-  return (
-    <group position={position} rotation={[0, rotation, 0]} scale={scale}>
-      <mesh position={[0, 1.5, 0]} castShadow>
-        <boxGeometry args={[4, 3, 3]} />
-        <meshStandardMaterial color={0xf0dcb8} roughness={0.9} />
-      </mesh>
-      <mesh position={[0, 3.8, 0]} castShadow>
-        <coneGeometry args={[3.5, 2, 4]} />
-        <meshStandardMaterial color={0x2d2d2d} roughness={1} />
-      </mesh>
-      <mesh position={[0, 1.2, 1.51]}>
-        <planeGeometry args={[1, 2.4]} />
-        <meshStandardMaterial color={0x5d4037} />
-      </mesh>
-    </group>
-  )
-}
-
-function Lantern({ position }: { position: [number, number, number] }) {
-  return (
-    <group position={position}>
-      <mesh>
-        <cylinderGeometry args={[0.4, 0.4, 0.8, 8]} />
-        <meshStandardMaterial
-          color={0xcc0000}
-          emissive={0x880000}
-          emissiveIntensity={0.5}
-        />
-      </mesh>
-      <pointLight color={0xffd27a} intensity={2} distance={10} />
-    </group>
-  )
-}
-
+// 村庄房屋（复用探索模式共享组件）
 function VillageArea() {
   const houses: Array<{ p: [number, number, number]; r: number; s: number }> = [
     { p: [-10, 0, -78], r: 0.3, s: 1.1 },
@@ -133,43 +91,20 @@ function VillageArea() {
   return (
     <group>
       {houses.map((h, i) => (
-        <VillageHouse key={i} position={h.p} rotation={h.r} scale={h.s} />
+        <ChineseHouse key={i} position={h.p} rotation={h.r} scale={h.s} wallColor={0xf0dcb8} />
       ))}
-      <Lantern position={[-9, 4, -78]} />
-      <Lantern position={[9, 4, -82]} />
-      <Lantern position={[0, 4, -94]} />
-      {/* 田地色块 */}
+      <ChineseLantern position={[-9, 4, -78]} />
+      <ChineseLantern position={[9, 4, -82]} />
+      <ChineseLantern position={[0, 4, -94]} />
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.02, -82]} receiveShadow>
         <planeGeometry args={[40, 30]} />
         <meshStandardMaterial color={0x5a7a3a} roughness={1} />
       </mesh>
-      {/* 池塘 */}
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[14, 0.05, -84]}>
         <circleGeometry args={[5, 32]} />
-        <meshStandardMaterial
-          color={0x2e8b8b}
-          transparent
-          opacity={0.55}
-          roughness={0.1}
-        />
+        <meshStandardMaterial color={0x2e8b8b} transparent opacity={0.55} roughness={0.1} />
       </mesh>
-      {/* 村庄周围桃树 */}
-      {Array.from({ length: 24 }).map((_, i) => {
-        const angle = (i / 24) * Math.PI * 2
-        const r = 18 + Math.sin(i * 4.7) * 5
-        return (
-          <group key={i} position={[Math.cos(angle) * r, 0, Math.sin(angle) * r - 84]}>
-            <mesh position={[0, 2.5, 0]} castShadow>
-              <cylinderGeometry args={[0.15, 0.25, 5, 6]} />
-              <meshStandardMaterial color={0x5d4037} />
-            </mesh>
-            <mesh position={[0, 5.5, 0]}>
-              <sphereGeometry args={[2, 8, 6]} />
-              <meshStandardMaterial color={0xffb7c5} roughness={0.85} />
-            </mesh>
-          </group>
-        )
-      })}
+      <VillagePeachTrees centerZ={-84} />
     </group>
   )
 }
