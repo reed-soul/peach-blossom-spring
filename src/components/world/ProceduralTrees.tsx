@@ -109,7 +109,7 @@ function generateTree(
   branch(origin, trunkDir, height, 0.15, 0)
 
   // Create instanced meshes
-  const trunkGeo = new THREE.CylinderGeometry(1, 1, 1, 6)
+  const trunkGeo = new THREE.CylinderGeometry(1, 1, 1, 10)
   const trunkMat = new THREE.MeshStandardMaterial({
     color: 0x5d4037,
     roughness: 1,
@@ -120,7 +120,7 @@ function generateTree(
   trunkMesh.castShadow = true
   trunkMesh.receiveShadow = true
 
-  const blossomGeo = new THREE.SphereGeometry(1, 6, 4)
+  const blossomGeo = new THREE.SphereGeometry(1, 10, 8)
   const blossomMat = new THREE.MeshStandardMaterial({
     roughness: 0.8,
     vertexColors: false,

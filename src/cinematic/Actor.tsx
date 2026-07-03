@@ -177,7 +177,7 @@ export function ActorProcedural({ posRef, facingRef, actionRef, onStep }: ActorP
       new THREE.Vector2(0.68, -0.92), // 下摆大幅张开（拖地）
       new THREE.Vector2(0.78, -1.02), // 落地
     ]
-    const g = new THREE.LatheGeometry(profile, 24)
+    const g = new THREE.LatheGeometry(profile, 40)
     return g
   }, [])
   // 广袖几何：横向锥筒，从肩(细)向袖口(宽)沿 X 轴伸出并下垂
@@ -197,7 +197,7 @@ export function ActorProcedural({ posRef, facingRef, actionRef, onStep }: ActorP
       new THREE.Vector2(0.10, -0.6), // 中段收
       new THREE.Vector2(0.06, -0.9), // 发梢
     ]
-    const g = new THREE.LatheGeometry(profile, 10)
+    const g = new THREE.LatheGeometry(profile, 20)
     return g
   }, [])
   const sashGeom = useMemo(() => {
@@ -331,7 +331,7 @@ export function ActorProcedural({ posRef, facingRef, actionRef, onStep }: ActorP
         {/* ===== 颈→头部分层（头部可独立微点，分层呼吸） ===== */}
         <group ref={neck} position={[0, 1.5, 0]}>
           {/* 头 */}
-          <Part geom={<sphereGeometry args={[0.27, 18, 18]} />} mat={mSkin} position={[0, 0.12, 0]} outline={1.06} />
+          <Part geom={<sphereGeometry args={[0.27, 28, 24]} />} mat={mSkin} position={[0, 0.12, 0]} outline={1.06} />
 
           {/* ===== 面部五官（角色面向 -z，故五官在 z 负侧） ===== */}
           {/* 眉（细长，略上扬的国风剑眉） */}
@@ -371,7 +371,7 @@ export function ActorProcedural({ posRef, facingRef, actionRef, onStep }: ActorP
 
           {/* 束发冠 */}
           <mesh position={[0, 0.36, 0]} material={mCrown}>
-            <cylinderGeometry args={[0.16, 0.18, 0.14, 8]} />
+            <cylinderGeometry args={[0.16, 0.18, 0.14, 14]} />
           </mesh>
           <mesh position={[0, 0.45, 0]} material={mCrown}>
             <sphereGeometry args={[0.05, 10, 10]} />
