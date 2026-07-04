@@ -6,7 +6,7 @@ const noise2D = createNoise2D()
 
 export function MountainRange() {
   const mountains = useMemo(() => {
-    const result: { position: [number, number, number]; scale: [number, number, number]; rotation: number; color: number }[] = []
+    const result: { position: [number, number, number]; scale: [number, number, number]; rotation: number; distance: number; seed: number }[] = []
 
     // Ring of mountains surrounding the scene
     const count = 14
@@ -19,14 +19,12 @@ export function MountainRange() {
       const width = 20 + Math.sin(i * 7.1) * 8
       const depth = 25 + Math.sin(i * 2.3) * 10
 
-      // Gradient from dark to light (far = lighter, atmospheric perspective)
-      const brightness = 0.25 + Math.sin(i * 4.1) * 0.08
-
       result.push({
         position: [x, height * 0.3, z],
         scale: [width, height, depth],
         rotation: angle,
-        color: new THREE.Color(brightness * 0.7, brightness * 0.75, brightness * 0.85).getHex(),
+        distance: r, // 距离场景中心的距离，用于驱动颜色（空气透视）
+        seed: i * 111,
       })
     }
 
@@ -36,23 +34,28 @@ export function MountainRange() {
   return (
     <group>
       {mountains.map((m, i) => (
-        <MountainMesh key={i} {...m} seed={i * 111} />
+        <MountainMesh key={i} {...m} />
       ))}
     </group>
   )
 }
 
-function MountainMesh({ position, scale, rotation, color, seed }: {
+function MountainMesh({ position, scale, rotation, distance, seed }: {
   position: [number, number, number]
   scale: [number, number, number]
   rotation: number
-  color: number
+  distance: number
   seed: number
 }) {
   const geometry = useMemo(() => {
     const geo = new THREE.SphereGeometry(1, 24, 16, 0, Math.PI * 2, 0, Math.PI * 0.55)
     const positions = geo.attributes.position
-    const rng = mulberry32(seed)
+
+    // 顶点色数组：山脚绿、山顶灰岩（按归一化高度 lerp）
+    const colorArr = new Float32Array(positions.count * 3)
+    const cFoot = new THREE.Color(0x4a5a3a) // 山脚深绿
+    const cMid = new THREE.Color(0x6a6258)  // 中段褐灰
+    const cPeak = new THREE.Color(0x8a8a92) // 山顶浅灰（岩石/雾）
 
     for (let i = 0; i < positions.count; i++) {
       const x = positions.getX(i)
@@ -69,20 +72,37 @@ function MountainMesh({ position, scale, rotation, color, seed }: {
       positions.setX(i, x * (1 + n + peakFactor * 0.2))
       positions.setY(i, y * (1 + n2 + peakFactor * 0.3))
       positions.setZ(i, z * (1 + n + peakFactor * 0.15))
+
+      // 顶点色：按归一化 y 高度分三档
+      const ny = (y + 1) * 0.5 // 归一化到 0..1（sphere 局部 y ∈ [-1,1]）
+      const c = new THREE.Color()
+      if (ny < 0.4) {
+        c.lerpColors(cFoot, cMid, ny / 0.4)
+      } else {
+        c.lerpColors(cMid, cPeak, (ny - 0.4) / 0.6)
+      }
+      colorArr[i * 3] = c.r
+      colorArr[i * 3 + 1] = c.g
+      colorArr[i * 3 + 2] = c.b
     }
 
     geo.computeVertexNormals()
+    // 顶点色直接挂到 geometry 上（vertexColors 需要 'color' attribute）
+    geo.setAttribute('color', new THREE.BufferAttribute(colorArr, 3))
     return geo
   }, [seed])
+
+  // 距离驱动的基础色（远山偏淡蓝灰，近山偏深）：归一化距离 0.65..1.0 → 亮度 1.0..0.7
+  const distFactor = THREE.MathUtils.clamp((distance - 65) / 35, 0, 1) // 0=近, 1=远
 
   return (
     <mesh position={position} scale={scale} rotation={[0, rotation, 0]} geometry={geometry}>
       <meshStandardMaterial
-        color={color}
-        roughness={1}
-        flatShading
-        transparent
-        opacity={0.7}
+        vertexColors
+        color={new THREE.Color().setHSL(0.6, 0.1, 1 - distFactor * 0.3)}
+        roughness={0.95}
+        // 去掉 flatShading + transparent：改用顶点色 + 雾实现空气透视
+        // 远山靠 scene.fog 自然淡出，不再半透明穿透
       />
     </mesh>
   )

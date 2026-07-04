@@ -2,6 +2,7 @@ import { useRef, useMemo } from 'react'
 import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 import { createNoise2D } from 'simplex-noise'
+import { PbrTextures } from '../../cinematic/textures/PbrTextures'
 
 const noise2D = createNoise2D()
 
@@ -64,6 +65,7 @@ export function Stream() {
   }, [])
 
   const material = useMemo(() => {
+    const normalMap = PbrTextures.waterNormal([4, 8])
     return new THREE.ShaderMaterial({
       transparent: true,
       uniforms: {
@@ -71,15 +73,25 @@ export function Stream() {
         uColor1: { value: new THREE.Color(0x4a8b8b) },
         uColor2: { value: new THREE.Color(0x2e6b6b) },
         uColor3: { value: new THREE.Color(0xffffff) },
+        uNormalMap: { value: normalMap },
       },
       vertexShader: `
+        uniform float uTime;
         varying vec2 vUv;
         varying vec3 vWorldPos;
+        varying vec3 vViewDir;
         void main() {
           vUv = uv;
-          vec4 worldPos = modelMatrix * vec4(position, 1.0);
+          vec3 pos = position;
+          // 顶点波动：让水面真的有起伏（不再平带）
+          pos.y += sin(pos.z * 1.5 + uTime * 1.2) * 0.08
+                 + sin(pos.x * 2.0 + uTime * 0.9) * 0.05;
+          vec4 worldPos = modelMatrix * vec4(pos, 1.0);
           vWorldPos = worldPos.xyz;
-          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+          // 视线方向（用于 Fresnel）：相机世界位 - 顶点世界位
+          vec4 mvPos = viewMatrix * worldPos;
+          vViewDir = normalize(cameraPosition - worldPos.xyz);
+          gl_Position = projectionMatrix * mvPos;
         }
       `,
       fragmentShader: `
@@ -87,8 +99,10 @@ export function Stream() {
         uniform vec3 uColor1;
         uniform vec3 uColor2;
         uniform vec3 uColor3;
+        uniform sampler2D uNormalMap;
         varying vec2 vUv;
         varying vec3 vWorldPos;
+        varying vec3 vViewDir;
 
         // Simple noise
         float hash(vec2 p) {
@@ -107,27 +121,37 @@ export function Stream() {
         }
 
         void main() {
-          // Flowing UV
+          // Flowing UV（双流法线采样，模拟水面凹凸流动）
           vec2 flowUv = vUv;
           flowUv.y += uTime * 0.08;
+          vec2 nUv1 = flowUv * 3.0 + vec2(0.0, uTime * 0.05);
+          vec2 nUv2 = flowUv * 3.0 - vec2(0.0, uTime * 0.07) + 0.5;
+          vec3 n1 = texture2D(uNormalMap, nUv1).rgb * 2.0 - 1.0;
+          vec3 n2 = texture2D(uNormalMap, nUv2).rgb * 2.0 - 1.0;
+          vec3 waterNormal = normalize(vec3(n1.xy + n2.xy, n1.z));
+
+          // Fresnel：近水平角（视线越平行水面）反射越强
+          float fresnel = pow(1.0 - max(dot(vViewDir, vec3(0.0, 1.0, 0.0)), 0.0), 3.0);
 
           // Water color with noise
           float n = noise(flowUv * 15.0) * 0.3;
           float n2 = noise(flowUv * 30.0 - uTime * 0.1) * 0.15;
           float wave = sin(flowUv.y * 40.0 + uTime * 2.0) * 0.02;
 
-          vec3 color = mix(uColor1, uColor2, vUv.x + n);
-          color += n2 * 0.3;
+          vec3 deepColor = mix(uColor1, uColor2, vUv.x + n);
+          deepColor += n2 * 0.3;
+          // Fresnel 把高光天色混到近水平角
+          vec3 color = mix(deepColor, uColor3, fresnel * 0.6);
 
-          // Sparkle on water surface
+          // Sparkle on water surface（用法线扰动增强高光）
           float sparkle = noise(flowUv * 50.0) * noise(flowUv * 80.0 - uTime);
-          color += uColor3 * sparkle * 0.15;
+          color += uColor3 * sparkle * 0.15 * (0.5 + fresnel);
 
           // Edge darkening (banks)
           float edgeFade = smoothstep(0.0, 0.15, vUv.x) * smoothstep(1.0, 0.85, vUv.x);
           float edgeFadeZ = smoothstep(0.0, 0.05, vUv.y) * smoothstep(1.0, 0.95, vUv.y);
 
-          float alpha = 0.65 + n * 0.15 + wave;
+          float alpha = 0.7 + n * 0.15 + wave;
           alpha *= edgeFade * edgeFadeZ;
 
           gl_FragColor = vec4(color + wave * 0.1, alpha);
