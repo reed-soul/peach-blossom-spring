@@ -36,7 +36,7 @@ function GodRay({ position, target }: { position: [number, number, number]; targ
 }
 import { ForestDetails } from './ForestDetails'
 import { VillageDetails } from '../../components/world/village/VillageDetails'
-import { ChineseHouse, ChineseLantern, VillagePeachTrees } from '../../components/world/village'
+import { ChineseHouse, ChineseLantern, VillagePeachTrees, ChimneyWithSmoke } from '../../components/world/village'
 import { CaveAndSky } from './CaveAndSky'
 
 // 电影模式固定明亮的暖调光照（不走 DayNightCycle 的昼夜变化，保证全程氛围稳定）
@@ -97,6 +97,10 @@ function VillageArea() {
       {houses.map((h, i) => (
         <ChineseHouse key={i} position={h.p} rotation={h.r} scale={h.s} wallColor={0xf0dcb8} />
       ))}
+      {/* 炊烟：在 3 栋房屋屋顶放烟囱（位置随房屋旋转偏移到屋顶上） */}
+      <ChimneyWithSmoke position={[-9, 5.2, -78]} scale={1.1} />
+      <ChimneyWithSmoke position={[7, 5.4, -82]} scale={1.2} />
+      <ChimneyWithSmoke position={[-1, 5.8, -94]} scale={1.3} />
       <ChineseLantern position={[-9, 4, -78]} />
       <ChineseLantern position={[9, 4, -82]} />
       <ChineseLantern position={[0, 4, -94]} />
