@@ -1,6 +1,6 @@
 import { Suspense, useEffect, useMemo } from 'react'
 import { useThree } from '@react-three/fiber'
-import { Environment } from '@react-three/drei'
+import { Environment, Lightformer } from '@react-three/drei'
 import * as THREE from 'three'
 import { Terrain } from '../../components/world/Terrain'
 import { Stream } from '../../components/world/Stream'
@@ -123,23 +123,44 @@ export function CinematicWorld() {
       {/* 固定明亮的暖调光照（电影模式全程氛围稳定） */}
       <BrightLighting />
 
-      {/* 程序化环境贴图：给金属冠/玉佩提供反射（无外部 HDR，子 mesh 作 cubemap 源） */}
+      {/* 程序化环境贴图：用 Lightformer 模拟定向光源，给金属/水面提供方向性反射 */}
       <Environment resolution={256} frames={1}>
-        {/* 上方天光（暖白） */}
-        <mesh scale={[8, 8, 8]} position={[0, 6, 0]}>
-          <sphereGeometry args={[1, 16, 16]} />
-          <meshBasicMaterial color="#fff2dc" side={THREE.BackSide} />
-        </mesh>
-        {/* 侧后暖光（模拟夕阳） */}
-        <mesh scale={[4, 4, 4]} position={[-4, 3, -4]}>
-          <sphereGeometry args={[1, 12, 12]} />
-          <meshBasicMaterial color="#ffd8a0" />
-        </mesh>
+        {/* 上方天光（暖白，大面光源） */}
+        <Lightformer
+          form="ring"
+          intensity={2.5}
+          color="#fff2dc"
+          scale={[12, 12, 1]}
+          position={[0, 8, 0]}
+          rotation={[Math.PI / 2, 0, 0]}
+        />
+        {/* 太阳方向（强暖光，模拟夕阳主光） */}
+        <Lightformer
+          form="rect"
+          intensity={4}
+          color="#ffe0b0"
+          scale={[6, 6, 1]}
+          position={[8, 6, -8]}
+          target={[0, 0, 0]}
+        />
+        {/* 冷侧补光（天空反射） */}
+        <Lightformer
+          form="rect"
+          intensity={1.2}
+          color="#a8c8e8"
+          scale={[8, 6, 1]}
+          position={[-10, 4, 6]}
+          target={[0, 0, 0]}
+        />
         {/* 下方地面反射（暗褐） */}
-        <mesh scale={[6, 6, 6]} position={[0, -3, 0]}>
-          <sphereGeometry args={[1, 12, 12]} />
-          <meshBasicMaterial color="#5a4a32" side={THREE.BackSide} />
-        </mesh>
+        <Lightformer
+          form="circle"
+          intensity={0.6}
+          color="#5a4a32"
+          scale={[10, 10, 1]}
+          position={[0, -3, 0]}
+          rotation={[-Math.PI / 2, 0, 0]}
+        />
       </Environment>
 
       {/* 地形/山/溪/树复用现有组件（围绕原点~z=-50 布置） */}
