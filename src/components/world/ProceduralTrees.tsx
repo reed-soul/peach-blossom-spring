@@ -8,6 +8,64 @@ import { createBillboardMaterial } from './shaders/billboardInstanced'
 
 const noise2D = createNoise2D()
 
+// 构建一段锥形圆柱几何（从 start 到 end，起点半径 r1，终点半径 r2）
+// 圆柱默认沿 Y 轴，这里旋转+平移到 start→end 方向
+const _up = new THREE.Vector3(0, 1, 0)
+function buildSegmentCylinder(start: THREE.Vector3, end: THREE.Vector3, r1: number, r2: number, radialSeg = 10): THREE.BufferGeometry {
+  const len = start.distanceTo(end)
+  const geo = new THREE.CylinderGeometry(r2, r1, len, radialSeg, 1, false)
+  // 旋转：默认 Y 轴 → start→end 方向
+  const dir = end.clone().sub(start).normalize()
+  const quat = new THREE.Quaternion().setFromUnitVectors(_up, dir)
+  const mid = start.clone().lerp(end, 0.5)
+  geo.applyQuaternion(quat)
+  geo.translate(mid.x, mid.y, mid.z)
+  return geo
+}
+
+// 合并多段几何为一个 BufferGeometry（消除段间拼接缝）
+function mergeSegmentGeometries(geos: THREE.BufferGeometry[]): THREE.BufferGeometry {
+  // 简易合并：手动拼接 position/normal/uv（不依赖 BufferGeometryUtils）
+  let posCount = 0
+  let normCount = 0
+  let uvCount = 0
+  let idxCount = 0
+  for (const g of geos) {
+    posCount += g.attributes.position.count
+    normCount += g.attributes.normal.count
+    uvCount += g.attributes.uv.count
+    idxCount += g.index ? g.index.count : g.attributes.position.count
+  }
+  const positions = new Float32Array(posCount * 3)
+  const normals = new Float32Array(normCount * 3)
+  const uvs = new Float32Array(uvCount * 2)
+  const indices = new Uint32Array(idxCount)
+  let pOff = 0, nOff = 0, uOff = 0, iOff = 0, vBase = 0
+  for (const g of geos) {
+    const p = g.attributes.position.array as ArrayLike<number>
+    positions.set(p, pOff); pOff += g.attributes.position.count * 3
+    const n = g.attributes.normal.array as ArrayLike<number>
+    normals.set(n, nOff); nOff += g.attributes.normal.count * 3
+    const u = g.attributes.uv.array as ArrayLike<number>
+    uvs.set(u, uOff); uOff += g.attributes.uv.count * 2
+    if (g.index) {
+      const idx = g.index.array as ArrayLike<number>
+      for (let i = 0; i < idx.length; i++) indices[iOff + i] = idx[i] + vBase
+      iOff += idx.length
+    } else {
+      for (let i = 0; i < g.attributes.position.count; i++) indices[iOff + i] = i + vBase
+      iOff += g.attributes.position.count
+    }
+    vBase += g.attributes.position.count
+  }
+  const merged = new THREE.BufferGeometry()
+  merged.setAttribute('position', new THREE.BufferAttribute(positions, 3))
+  merged.setAttribute('normal', new THREE.BufferAttribute(normals, 3))
+  merged.setAttribute('uv', new THREE.BufferAttribute(uvs, 2))
+  merged.setIndex(new THREE.BufferAttribute(indices, 1))
+  return merged
+}
+
 const LSystemRules: Record<string, string> = {
   F: 'FF+[+F-F-F]-[-F+F+F]',
 }
@@ -25,8 +83,15 @@ function pickBlossomColor(rng: () => number): THREE.Color {
   return color
 }
 
+interface TrunkSegment {
+  start: THREE.Vector3
+  end: THREE.Vector3
+  startRadius: number
+  endRadius: number
+}
+
 interface TreeData {
-  trunkMatrices: THREE.Matrix4[]
+  trunkSegments: TrunkSegment[]
   blossomMatrices: THREE.Matrix4[]
   blossomColors: THREE.Color[]
 }
@@ -107,7 +172,7 @@ function generateTree(
   height: number,
   spread: number,
 ): TreeData {
-  const trunkMatrices: THREE.Matrix4[] = []
+  const trunkSegments: TrunkSegment[] = []
   const blossomMatrices: THREE.Matrix4[] = []
   const blossomColors: THREE.Color[] = []
   const rng = mulberry32(seed)
@@ -124,8 +189,6 @@ function generateTree(
   let thickness = baseThickness
   let depth = 0
 
-  const up = new THREE.Vector3(0, 1, 0)
-
   for (let i = 0; i < instructions.length; i++) {
     const char = instructions[i]
     const angleJitter = 1 + (rng() - 0.5) * 0.4
@@ -136,14 +199,12 @@ function generateTree(
         const len = segmentLength * Math.pow(lengthDecay, depth) * lengthJitter
         if (len < 0.15) break
 
-        const thick = Math.max(0.02, thickness * Math.pow(thicknessDecay, depth))
+        const startRadius = Math.max(0.02, thickness * Math.pow(thicknessDecay, depth))
         const end = pos.clone().add(dir.clone().multiplyScalar(len))
-        const mid = pos.clone().lerp(end, 0.5)
+        // 末端半径略小于起点（锥度），用当前 depth+1 估算子段粗细
+        const endRadius = Math.max(0.015, thickness * Math.pow(thicknessDecay, depth + 1) * 0.9)
 
-        const mat = new THREE.Matrix4()
-        const quat = new THREE.Quaternion().setFromUnitVectors(up, dir.clone().normalize())
-        mat.compose(mid, quat, new THREE.Vector3(thick, len / 2, thick))
-        trunkMatrices.push(mat)
+        trunkSegments.push({ start: pos.clone(), end: end.clone(), startRadius, endRadius })
 
         if (depth >= 3 && isTerminalSegment(instructions, i)) {
           addBlossoms(end, spread, rng, blossomMatrices, blossomColors)
@@ -176,7 +237,7 @@ function generateTree(
     }
   }
 
-  return { trunkMatrices, blossomMatrices, blossomColors }
+  return { trunkSegments, blossomMatrices, blossomColors }
 }
 
 function mulberry32(a: number) {
@@ -210,13 +271,13 @@ export function ProceduralTrees() {
     while (groupRef.current.children.length > 0) {
       const child = groupRef.current.children[0]
       groupRef.current.remove(child)
-      if (child instanceof THREE.InstancedMesh) {
+      if (child instanceof THREE.Mesh || child instanceof THREE.InstancedMesh) {
         child.geometry.dispose()
         ;(child.material as THREE.Material).dispose()
       }
     }
 
-    const allTrunkMatrices: THREE.Matrix4[] = []
+    const allTrunkSegments: TrunkSegment[] = []
     const allBlossomMatrices: THREE.Matrix4[] = []
     const allBlossomColors: THREE.Color[] = []
 
@@ -246,21 +307,24 @@ export function ProceduralTrees() {
       if (terrainY < -0.3) continue
 
       const tree = generateTree(new THREE.Vector3(x, terrainY, z), seed, height, spread)
-      allTrunkMatrices.push(...tree.trunkMatrices)
+      allTrunkSegments.push(...tree.trunkSegments)
       allBlossomMatrices.push(...tree.blossomMatrices)
       allBlossomColors.push(...tree.blossomColors)
     }
 
-    if (allTrunkMatrices.length > 0) {
-      const trunkGeo = new THREE.CylinderGeometry(1, 1, 1, 10)
+    if (allTrunkSegments.length > 0) {
+      // 每段构建锥形圆柱，然后合并成一个 BufferGeometry（消除拼接缝）
+      const segGeos = allTrunkSegments.map((s) => buildSegmentCylinder(s.start, s.end, s.startRadius, s.endRadius, 10))
+      const mergedTrunkGeo = mergeSegmentGeometries(segGeos)
+      // 释放临时几何
+      segGeos.forEach((g) => g.dispose())
       const trunkMat = new THREE.MeshStandardMaterial({
         color: 0x5d4037,
-        roughness: 1,
+        roughness: 0.95,
         map: PbrTextures.wood([1, 3]),
+        roughnessMap: PbrTextures.woodRough([1, 3]),
       })
-      const trunkMesh = new THREE.InstancedMesh(trunkGeo, trunkMat, allTrunkMatrices.length)
-      allTrunkMatrices.forEach((m, i) => trunkMesh.setMatrixAt(i, m))
-      trunkMesh.instanceMatrix.needsUpdate = true
+      const trunkMesh = new THREE.Mesh(mergedTrunkGeo, trunkMat)
       trunkMesh.castShadow = true
       trunkMesh.receiveShadow = true
       groupRef.current.add(trunkMesh)

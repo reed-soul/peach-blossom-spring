@@ -1,6 +1,7 @@
 import { useMemo, useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
+import { createPetalAlphaTexture } from '../../components/world/proceduralTextures'
 
 // 仙侠风配色（与现有暖调桃林一致）
 const PETAL_FALL_COLORS = [0xffb7c5, 0xffc0cb, 0xff9eb5, 0xffe4e1]
@@ -89,6 +90,11 @@ function ExtraFallingPetals() {
     return arr
   }, [data])
 
+  const petalTex = useMemo(() => {
+    const t = createPetalAlphaTexture()
+    return t
+  }, [])
+
   return (
     <instancedMesh
       ref={meshRef}
@@ -97,9 +103,11 @@ function ExtraFallingPetals() {
     >
       <planeGeometry args={[0.3, 0.3]} />
       <meshStandardMaterial
+        map={petalTex}
         vertexColors
         side={THREE.DoubleSide}
         transparent
+        alphaTest={0.15}
         opacity={0.9}
         roughness={0.85}
       />
@@ -117,6 +125,18 @@ function ExtraFallingPetals() {
  * 模拟「地上铺满落花」的质感。
  */
 function FallenPetalCarpet() {
+  // 花瓣 alpha 贴图（高重复，模拟一地散落的碎花瓣）
+  const carpetTex = useMemo(() => {
+    const t = createPetalAlphaTexture()
+    // 克隆避免影响其它使用者（设置高重复）
+    const c = t.clone()
+    c.needsUpdate = true
+    c.wrapS = THREE.RepeatWrapping
+    c.wrapT = THREE.RepeatWrapping
+    c.repeat.set(8, 8)
+    return c
+  }, [])
+
   const patches = useMemo(() => {
     const rng = makeRng(88)
     return Array.from({ length: 14 }, () => ({
@@ -127,7 +147,7 @@ function FallenPetalCarpet() {
       ] as [number, number, number],
       rot: rng() * Math.PI,
       scale: [4 + rng() * 5, 3 + rng() * 4, 1] as [number, number, number],
-      opacity: 0.18 + rng() * 0.18,
+      opacity: 0.25 + rng() * 0.25,
     }))
   }, [])
 
@@ -143,8 +163,10 @@ function FallenPetalCarpet() {
         >
           <planeGeometry args={[1, 1]} />
           <meshStandardMaterial
+            map={carpetTex}
             color={0xffb7c5}
             transparent
+            alphaTest={0.2}
             opacity={p.opacity}
             roughness={1}
             depthWrite={false}
