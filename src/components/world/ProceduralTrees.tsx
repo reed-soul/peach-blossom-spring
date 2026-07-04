@@ -359,7 +359,8 @@ const GRASS_COLORS = [
 export function GroundCover() {
   const meshRef = useRef<THREE.InstancedMesh>(null)
   const matRef = useRef<THREE.ShaderMaterial>(null)
-  const count = 2000
+  // 提升密度：2000 → 6000，配合聚簇分布让草地更茂密自然
+  const count = 6000
 
   const grassTex = useMemo(() => createGrassAlphaTexture(), [])
   const grassMaterial = useMemo(
@@ -377,33 +378,56 @@ export function GroundCover() {
     const rng = mulberry32(42)
     const colors: THREE.Color[] = []
 
-    for (let i = 0; i < count; i++) {
-      const x = (rng() - 0.5) * 100
-      const z = (rng() - 0.5) * 100
+    // 聚簇分布：先撒 ~120 个簇心，每簇周围 gaussian 抖动撒 ~50 株
+    // 比均匀盐粒式更像真实草丛（草成团生长，非均匀铺满）
+    const clusterCount = 120
+    const perCluster = Math.ceil(count / clusterCount)
+    const clusters: { cx: number; cz: number; spread: number }[] = []
+    for (let c = 0; c < clusterCount; c++) {
+      clusters.push({
+        cx: (rng() - 0.5) * 100,
+        cz: (rng() - 0.5) * 100,
+        spread: 2 + rng() * 4, // 簇半径 2~6m
+      })
+    }
 
-      let y = 0
-      y += noise2D(x * 0.02, z * 0.02) * 6
-      y += noise2D(x * 0.05, z * 0.05) * 2
-      y += noise2D(x * 0.1, z * 0.1) * 0.5
-      if (y < -0.2) {
-        mat.identity()
-        mat.makeScale(0, 0, 0)
-        meshRef.current.setMatrixAt(i, mat)
-        colors.push(GRASS_COLORS[0])
-        continue
+    let placed = 0
+    for (let c = 0; c < clusterCount && placed < count; c++) {
+      const cl = clusters[c]
+      for (let k = 0; k < perCluster && placed < count; k++) {
+        // gaussian 抖动（3 次均匀求和近似正态）：草集中在簇心附近
+        const gx = (rng() + rng() + rng() - 1.5) * cl.spread
+        const gz = (rng() + rng() + rng() - 1.5) * cl.spread
+        const x = cl.cx + gx
+        const z = cl.cz + gz
+
+        let y = 0
+        y += noise2D(x * 0.02, z * 0.02) * 6
+        y += noise2D(x * 0.05, z * 0.05) * 2
+        y += noise2D(x * 0.1, z * 0.1) * 0.5
+        if (y < -0.2) {
+          // 低洼区不生草：缩到极小而非 0（避免被裁但仍占 draw）
+          mat.identity()
+          mat.makeScale(1e-4, 1e-4, 1e-4)
+          meshRef.current.setMatrixAt(placed, mat)
+          colors.push(GRASS_COLORS[0])
+          placed++
+          continue
+        }
+
+        const heightScale = rng() * 0.5 + 0.5
+        const widthScale = rng() * 0.25 + 0.15
+        const rotY = rng() * Math.PI * 2
+        const quat = new THREE.Quaternion().setFromEuler(new THREE.Euler(0, rotY, 0))
+        mat.compose(
+          new THREE.Vector3(x, y, z),
+          quat,
+          new THREE.Vector3(widthScale, heightScale, 1),
+        )
+        meshRef.current.setMatrixAt(placed, mat)
+        colors.push(GRASS_COLORS[Math.floor(rng() * GRASS_COLORS.length)])
+        placed++
       }
-
-      const heightScale = rng() * 0.5 + 0.5
-      const widthScale = rng() * 0.25 + 0.15
-      const rotY = rng() * Math.PI * 2
-      const quat = new THREE.Quaternion().setFromEuler(new THREE.Euler(0, rotY, 0))
-      mat.compose(
-        new THREE.Vector3(x, y, z),
-        quat,
-        new THREE.Vector3(widthScale, heightScale, 1),
-      )
-      meshRef.current.setMatrixAt(i, mat)
-      colors.push(GRASS_COLORS[Math.floor(rng() * GRASS_COLORS.length)])
     }
 
     meshRef.current.instanceColor = buildInstancedColors(colors)

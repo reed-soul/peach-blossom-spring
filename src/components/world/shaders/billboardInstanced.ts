@@ -28,11 +28,12 @@ export function createBillboardMaterial(
         float sy = length(vec3(instanceMatrix[1].xyz));
 
         vec3 camPos = (inverse(viewMatrix) * vec4(0.0, 0.0, 0.0, 1.0)).xyz;
-        vec3 look = normalize(camPos - worldCenter.xyz);
-        vec3 upRef = vec3(0.0, 1.0, 0.0);
-        vec3 right = normalize(cross(upRef, look));
+        // Cylindrical billboard：只绕 Y 轴跟随相机水平方向，up 固定向上
+        // （spherical 全跟相机时俯视会变成一条线，cylindrical 俯视仍是竖立扁片）
+        vec3 lookH = normalize(vec3(camPos.x - worldCenter.x, 0.0, camPos.z - worldCenter.z));
+        vec3 up = vec3(0.0, 1.0, 0.0);
+        vec3 right = normalize(cross(up, lookH));
         if (length(right) < 0.001) right = vec3(1.0, 0.0, 0.0);
-        vec3 up = cross(look, right);
 
         vec2 pos = position.xy;
         ${wind ? `
