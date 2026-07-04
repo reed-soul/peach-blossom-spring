@@ -6,6 +6,9 @@ import {
   Vignette,
   HueSaturation,
   BrightnessContrast,
+  N8AO,
+  DepthOfField,
+  SMAA,
 } from '@react-three/postprocessing'
 import { BlendFunction, ToneMappingMode, KernelSize } from 'postprocessing'
 import * as THREE from 'three'
@@ -79,6 +82,7 @@ export function PostFX({ actIndex }: PostFXProps) {
   const hueRef = useRef<any>(null)
   const brightRef = useRef<any>(null)
   const vignetteRef = useRef<any>(null)
+  const dofRef = useRef<any>(null)
 
   useFrame(() => {
     const c = current.current
@@ -93,10 +97,30 @@ export function PostFX({ actIndex }: PostFXProps) {
       if (brightRef.current.uniforms?.contrast) brightRef.current.uniforms.contrast.value = c.contrast
     }
     if (vignetteRef.current?.uniforms?.darkness) vignetteRef.current.uniforms.darkness.value = c.vignetteDark
+    // DoF 焦距随幕过渡（c.dofFocus 0.015..0.028）
+    if (dofRef.current) {
+      const dof = dofRef.current
+      // DepthOfField effect 的 focusDistance 在 .uniforms 或属性
+      const target = c.dofFocus
+      // 平滑过渡
+      if (dof.uniforms?.focusDistance) {
+        dof.uniforms.focusDistance.value = lerp(dof.uniforms.focusDistance.value, target, 0.05)
+      } else if (dof.focusDistance !== undefined) {
+        dof.focusDistance = lerp(dof.focusDistance, target, 0.05)
+      }
+    }
   })
 
   return (
     <EffectComposer multisampling={4}>
+      {/* 环境光遮蔽：屋檐下/树根/墙角自动出现接触阴影，消除"漂浮感" */}
+      <N8AO
+        aoRadius={8}
+        aoSamples={8}
+        intensity={1.5}
+        denoiseSamples={1}
+        halfRes
+      />
       <Bloom
         ref={bloomRef}
         intensity={current.current.bloomIntensity}
@@ -104,6 +128,14 @@ export function PostFX({ actIndex }: PostFXProps) {
         luminanceSmoothing={0.4}
         mipmapBlur
         kernelSize={KernelSize.LARGE}
+      />
+      {/* 景深：接通之前死代码 dofFocus 字段（0.015..0.028）
+          bokehScale 保守设 1.5（之前 2.4 太糊），focalLength 小避免大面积模糊 */}
+      <DepthOfField
+        ref={dofRef}
+        focusDistance={current.current.dofFocus}
+        focalLength={0.04}
+        bokehScale={1.5}
       />
       <HueSaturation
         ref={hueRef}
@@ -121,6 +153,8 @@ export function PostFX({ actIndex }: PostFXProps) {
         darkness={current.current.vignetteDark}
         blendFunction={BlendFunction.NORMAL}
       />
+      {/* 抗锯齿：叠加在 multisampling=4 之上，进一步锐化边缘 */}
+      <SMAA />
     </EffectComposer>
   )
 }
