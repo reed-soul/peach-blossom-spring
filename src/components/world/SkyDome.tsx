@@ -7,8 +7,8 @@ export function SkyDome() {
       <shaderMaterial
         side={THREE.BackSide}
         uniforms={{
-          topColor: { value: new THREE.Color(0x8899bb) },
-          bottomColor: { value: new THREE.Color(0x3d1f2f) },
+          topColor: { value: new THREE.Color(0xf5f0e0) },
+          bottomColor: { value: new THREE.Color(0xe8dcc8) },
         }}
         vertexShader={`
           varying vec3 vWorldPosition;

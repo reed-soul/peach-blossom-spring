@@ -106,24 +106,23 @@ export function Terrain() {
       const c = new THREE.Color()
 
       if (y < -0.5) {
-        // Stream bed - sandy/muddy
-        c.setHex(0x8B7355)
+        // Stream bed — warm sandy ink tone
+        c.setHex(0xa89878)
       } else if (y < 0) {
-        // Stream bank - dark earth
-        c.lerpColors(new THREE.Color(0x3e2723), new THREE.Color(0x4a7c59), (y + 0.5) / 0.5)
+        // Stream bank — muted earth green
+        c.lerpColors(new THREE.Color(0x6b5a48), new THREE.Color(0x5a7a5a), (y + 0.5) / 0.5)
       } else if (y < 2) {
-        // Low ground - lush grass
-        c.setHex(0x4a7c59)
-        // Add some variation
-        const variation = noise2D(positions.getX(i) * 0.3, positions.getZ(i) * 0.3) * 0.1
+        // Low ground — soft ink-wash green
+        c.setHex(0x6a8a6a)
+        const variation = noise2D(positions.getX(i) * 0.3, positions.getZ(i) * 0.3) * 0.08
         c.r = Math.max(0, Math.min(1, c.r + variation))
-        c.g = Math.max(0, Math.min(1, c.g + variation))
+        c.g = Math.max(0, Math.min(1, c.g + variation * 0.6))
       } else if (y < 4) {
-        // Hills - darker green
-        c.lerpColors(new THREE.Color(0x4a7c59), new THREE.Color(0x2d5a3d), (y - 2) / 2)
+        // Hills — deeper muted green
+        c.lerpColors(new THREE.Color(0x6a8a6a), new THREE.Color(0x4a6a52), (y - 2) / 2)
       } else {
-        // High ground - rocky
-        c.lerpColors(new THREE.Color(0x2d5a3d), new THREE.Color(0x6d6d6d), Math.min(1, (y - 4) / 3))
+        // High ground — pale gray-green rock
+        c.lerpColors(new THREE.Color(0x4a6a52), new THREE.Color(0x8a8a7a), Math.min(1, (y - 4) / 3))
       }
 
       colors[i * 3] = c.r

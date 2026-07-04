@@ -1,6 +1,7 @@
 import { useMemo, useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
+import { ProceduralNpcFigure } from './npcParts'
 
 function makeRng(seed: number) {
   let a = seed
@@ -327,9 +328,171 @@ function ClothesLine() {
   )
 }
 
-/**
- * 田间农夫小人：简单胶囊体（身体）+ 球（头），棕色衣服，静止点缀。
- */
+/** 黄狗：box 拼成趴卧轮廓，守在路边 */
+function VillageDog() {
+  return (
+    <group position={[4.5, 0, -74]} rotation={[0, -0.6, 0]}>
+      <mesh position={[0, 0.12, 0]} castShadow>
+        <boxGeometry args={[0.55, 0.18, 0.28]} />
+        <meshStandardMaterial color={0xc9a227} roughness={1} />
+      </mesh>
+      <mesh position={[0.32, 0.2, 0]} castShadow>
+        <boxGeometry args={[0.22, 0.2, 0.2]} />
+        <meshStandardMaterial color={0xc9a227} roughness={1} />
+      </mesh>
+      <mesh position={[0.44, 0.28, 0.06]} castShadow>
+        <boxGeometry args={[0.1, 0.1, 0.08]} />
+        <meshStandardMaterial color={0xc9a227} roughness={1} />
+      </mesh>
+      <mesh position={[-0.28, 0.08, 0.1]} rotation={[0.3, 0, 0]} castShadow>
+        <boxGeometry args={[0.1, 0.06, 0.18]} />
+        <meshStandardMaterial color={0xc9a227} roughness={1} />
+      </mesh>
+      <mesh position={[-0.28, 0.08, -0.1]} rotation={[-0.3, 0, 0]} castShadow>
+        <boxGeometry args={[0.1, 0.06, 0.18]} />
+        <meshStandardMaterial color={0xc9a227} roughness={1} />
+      </mesh>
+      <mesh position={[0.22, 0.08, 0.1]} rotation={[0.25, 0, 0]} castShadow>
+        <boxGeometry args={[0.08, 0.05, 0.14]} />
+        <meshStandardMaterial color={0xc9a227} roughness={1} />
+      </mesh>
+      <mesh position={[0.22, 0.08, -0.1]} rotation={[-0.25, 0, 0]} castShadow>
+        <boxGeometry args={[0.08, 0.05, 0.14]} />
+        <meshStandardMaterial color={0xc9a227} roughness={1} />
+      </mesh>
+      <mesh position={[0.5, 0.32, 0.1]} castShadow>
+        <boxGeometry args={[0.06, 0.04, 0.12]} />
+        <meshStandardMaterial color={0x8b6914} roughness={1} />
+      </mesh>
+    </group>
+  )
+}
+
+/** 鸡：锥体身体 + 球头，散落于篱笆旁 */
+function Chickens() {
+  const chickens = useMemo(() => {
+    const spots: [number, number, number][] = [
+      [-14, 0, -77.5],
+      [-12.5, 0, -78.2],
+      [14.2, 0, -88.5],
+      [15.5, 0, -87.8],
+      [-13.8, 0, -89.2],
+    ]
+    return spots.map((pos, i) => ({
+      pos,
+      rot: (i * 1.3) % 6.28,
+      scale: 0.85 + (i % 3) * 0.12,
+    }))
+  }, [])
+
+  return (
+    <>
+      {chickens.map((c, i) => (
+        <group key={i} position={c.pos} rotation={[0, c.rot, 0]} scale={c.scale}>
+          <mesh position={[0, 0.18, 0]} castShadow>
+            <coneGeometry args={[0.12, 0.28, 6]} />
+            <meshStandardMaterial color={0xd4a017} roughness={1} />
+          </mesh>
+          <mesh position={[0, 0.34, 0.06]} castShadow>
+            <sphereGeometry args={[0.08, 8, 6]} />
+            <meshStandardMaterial color={0xd4a017} roughness={1} />
+          </mesh>
+          <mesh position={[0.06, 0.36, 0.12]} castShadow>
+            <coneGeometry args={[0.02, 0.06, 4]} />
+            <meshStandardMaterial color={0xc0392b} roughness={1} />
+          </mesh>
+        </group>
+      ))}
+    </>
+  )
+}
+
+/** 水车：圆柱轮 + 木架 */
+function WaterWheel({ position }: { position: [number, number, number] }) {
+  const wheelRef = useRef<THREE.Group>(null)
+
+  useFrame((_, delta) => {
+    if (wheelRef.current) wheelRef.current.rotation.z += delta * 0.35
+  })
+
+  return (
+    <group position={position}>
+      <mesh position={[-0.6, 1.2, 0]} castShadow>
+        <boxGeometry args={[0.12, 2.6, 0.12]} />
+        <meshStandardMaterial color={0x6b4f3a} roughness={1} />
+      </mesh>
+      <mesh position={[0.6, 1.2, 0]} castShadow>
+        <boxGeometry args={[0.12, 2.6, 0.12]} />
+        <meshStandardMaterial color={0x6b4f3a} roughness={1} />
+      </mesh>
+      <mesh position={[0, 2.5, 0]} castShadow>
+        <boxGeometry args={[1.5, 0.1, 0.12]} />
+        <meshStandardMaterial color={0x7a5a42} roughness={1} />
+      </mesh>
+      <group ref={wheelRef} position={[0, 1.1, 0.15]}>
+        <mesh castShadow>
+          <cylinderGeometry args={[0.85, 0.85, 0.12, 12]} />
+          <meshStandardMaterial color={0x8a7355} roughness={1} />
+        </mesh>
+        {[0, 1, 2, 3].map((i) => (
+          <mesh
+            key={i}
+            position={[
+              Math.cos((i / 4) * Math.PI * 2) * 0.55,
+              Math.sin((i / 4) * Math.PI * 2) * 0.55,
+              0,
+            ]}
+            rotation={[0, 0, (i / 4) * Math.PI * 2]}
+            castShadow
+          >
+            <boxGeometry args={[0.08, 0.55, 0.04]} />
+            <meshStandardMaterial color={0x7a5a42} roughness={1} />
+          </mesh>
+        ))}
+      </group>
+      <mesh position={[0, 0.35, 0.2]} castShadow receiveShadow>
+        <boxGeometry args={[1.4, 0.7, 0.9]} />
+        <meshStandardMaterial color={0x8a8275} roughness={1} />
+      </mesh>
+    </group>
+  )
+}
+
+/** 农田斑块：不同深浅的绿/黄平面 */
+function FarmPatches() {
+  const patches = useMemo(() => {
+    const colors = [0x4a7c3a, 0x5a8c42, 0x6b9c4a, 0xc9b458, 0xb5a048, 0x3d6b35]
+    const rng = makeRng(203)
+    return Array.from({ length: 8 }, (_, i) => ({
+      pos: [
+        -8 + (i % 4) * 5.5 + (rng() - 0.5) * 1.5,
+        0.04,
+        -82 - Math.floor(i / 4) * 6 + (rng() - 0.5) * 2,
+      ] as [number, number, number],
+      size: [2.8 + rng() * 1.2, 2.2 + rng() * 1.0] as [number, number],
+      rot: rng() * 0.3 - 0.15,
+      color: colors[i % colors.length],
+    }))
+  }, [])
+
+  return (
+    <>
+      {patches.map((p, i) => (
+        <mesh
+          key={i}
+          position={p.pos}
+          rotation={[-Math.PI / 2, p.rot, 0]}
+          receiveShadow
+        >
+          <planeGeometry args={p.size} />
+          <meshStandardMaterial color={p.color} roughness={1} />
+        </mesh>
+      ))}
+    </>
+  )
+}
+
+/** 田间农夫：程序化 Lathe 躯干 + 草帽 + 四肢，MeshToon 描边风格 */
 function Farmers() {
   const farmers = useMemo(() => {
     const spots: { pos: [number, number, number]; rot: number }[] = [
@@ -344,21 +507,7 @@ function Farmers() {
     <>
       {farmers.map((f, i) => (
         <group key={i} position={f.pos} rotation={[0, f.rot, 0]}>
-          {/* 身体（棕色衣服） */}
-          <mesh position={[0, 0.7, 0]} castShadow>
-            <capsuleGeometry args={[0.28, 0.7, 4, 8]} />
-            <meshStandardMaterial color={0x7a5234} roughness={1} />
-          </mesh>
-          {/* 头 */}
-          <mesh position={[0, 1.45, 0]} castShadow>
-            <sphereGeometry args={[0.22, 10, 8]} />
-            <meshStandardMaterial color={0xe0b890} roughness={1} />
-          </mesh>
-          {/* 头巾/帽子（米色） */}
-          <mesh position={[0, 1.6, 0]}>
-            <coneGeometry args={[0.3, 0.25, 8]} />
-            <meshStandardMaterial color={0xd8c4a0} roughness={1} />
-          </mesh>
+          <ProceduralNpcFigure role="farmer" />
         </group>
       ))}
     </>
@@ -374,8 +523,12 @@ export function VillageDetails() {
     <group>
       <StonePath />
       <Fences />
+      <FarmPatches />
       <MulberryAndBamboo />
       <Well position={[-13, 0, -83]} />
+      <WaterWheel position={[18, 0, -86]} />
+      <VillageDog />
+      <Chickens />
       <ClothesLine />
       <Farmers />
     </group>

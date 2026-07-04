@@ -174,7 +174,7 @@ export default function PeachForestSceneContent() {
         gl={{ antialias: true, alpha: false }}
       >
         <PhysicsWorld gravity={[0, -9.81, 0]}>
-          <fog attach="fog" args={['#c5d0d8', 15, 90]} />
+          <fog attach="fog" args={['#f0ebe0', 20, 100]} />
 
           <DayNightCycle speed={0.015} />
 

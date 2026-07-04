@@ -129,7 +129,7 @@ export default function VillageSceneContent() {
     <div className="w-full h-full relative">
       <Canvas shadows camera={{ position: [0, 1.5, 15], fov: 70, near: 0.1, far: 300 }}>
         <PhysicsWorld gravity={[0, -9.81, 0]}>
-          <fog attach="fog" args={['#c5d8e8', 20, 100]} />
+          <fog attach="fog" args={['#f0ebe0', 25, 110]} />
           <DayNightCycle speed={0.012} />
           <SkyDome />
 
@@ -164,10 +164,10 @@ export default function VillageSceneContent() {
           <ChineseHouse position={[12, 0, -15]} rotation={-0.4} scale={1.1} />
           <ChineseHouse position={[0, 0, -25]} rotation={0} scale={1.3} />
 
-          <VillageNpc position={[0, 0, -2]} name="老翁" onInteract={() => handleInteract('老翁')} />
-          <VillageNpc position={[-6, 0, -10]} name="渔女" onInteract={() => handleInteract('渔女')} />
-          <VillageNpc position={[5, 0, -12]} name="书生" onInteract={() => handleInteract('书生')} />
-          <VillageNpc position={[-3, 0, -18]} name="童子" onInteract={() => handleInteract('童子')} />
+          <VillageNpc position={[0, 0, -2]} name="老翁" isTalking={activeNPC === '老翁'} onInteract={() => handleInteract('老翁')} />
+          <VillageNpc position={[-6, 0, -10]} name="渔女" isTalking={activeNPC === '渔女'} onInteract={() => handleInteract('渔女')} />
+          <VillageNpc position={[5, 0, -12]} name="书生" isTalking={activeNPC === '书生'} onInteract={() => handleInteract('书生')} />
+          <VillageNpc position={[-3, 0, -18]} name="童子" isTalking={activeNPC === '童子'} onInteract={() => handleInteract('童子')} />
 
           <ChineseLantern position={[-9, 4, -4]} />
           <ChineseLantern position={[9, 4, -7]} />

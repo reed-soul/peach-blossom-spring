@@ -1,84 +1,34 @@
-import { useRef, useState, useEffect, useCallback } from 'react'
-import type { ReactNode } from 'react'
+import { useRef, useState, useEffect } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import { Html } from '@react-three/drei'
 import * as THREE from 'three'
+import { NpcSkeleton, type NpcAction } from '../npc/NpcSkeleton'
+import { npcRoleFromName } from './npcParts'
 
 export type VillageNpcRole = 'elder' | 'fisher' | 'scholar' | 'child'
-
-const ROLE_STYLES: Record<VillageNpcRole, { robe: string; skin: string; accent: string }> = {
-  elder: { robe: '#5c4a3a', skin: '#e8c9a0', accent: '#8b7355' },
-  fisher: { robe: '#4a6741', skin: '#ffdab9', accent: '#6b8e4e' },
-  scholar: { robe: '#3d4a5c', skin: '#f5deb3', accent: '#5a6a7a' },
-  child: { robe: '#8b6914', skin: '#ffe4c4', accent: '#c9a06b' },
-}
-
-const NPC_ROLE_BY_NAME: Record<string, VillageNpcRole> = {
-  老翁: 'elder',
-  渔女: 'fisher',
-  书生: 'scholar',
-  童子: 'child',
-}
-
-function useGradientMap() {
-  return useMemo(() => {
-    const data = new Uint8Array([90, 170, 245])
-    const tex = new THREE.DataTexture(data, data.length, 1, THREE.RedFormat)
-    tex.needsUpdate = true
-    tex.minFilter = THREE.NearestFilter
-    tex.magFilter = THREE.NearestFilter
-    return tex
-  }, [])
-}
-
-function ToonPart({
-  geom,
-  color,
-  gradientMap,
-  position,
-  scale,
-}: {
-  geom: ReactNode
-  color: string
-  gradientMap: THREE.Texture
-  position?: [number, number, number]
-  scale?: number | [number, number, number]
-}) {
-  const mat = useMemo(
-    () => new THREE.MeshToonMaterial({ color, gradientMap }),
-    [color, gradientMap],
-  )
-
-  return (
-    <group position={position} scale={scale}>
-      <mesh material={mat} castShadow>
-        {geom}
-      </mesh>
-      <mesh scale={1.04} renderOrder={-1}>
-        {geom}
-        <meshBasicMaterial color="#15110c" side={THREE.BackSide} />
-      </mesh>
-    </group>
-  )
-}
 
 export function VillageNpc({
   position,
   name,
   onInteract,
+  isTalking = false,
 }: {
   position: [number, number, number]
   name: string
   onInteract: () => void
+  isTalking?: boolean
 }) {
   const ref = useRef<THREE.Group>(null)
+  const actionRef = useRef<NpcAction>('idle')
   const [inRange, setInRange] = useState(false)
   const { camera } = useThree()
-  const gradientMap = useGradientMap()
-  const role = NPC_ROLE_BY_NAME[name] ?? 'elder'
-  const style = ROLE_STYLES[role]
+  const role = npcRoleFromName(name)
 
-  useFrame((state) => {
+  useEffect(() => {
+    actionRef.current = isTalking ? 'talking' : 'idle'
+  }, [isTalking])
+
+  useFrame(() => {
     if (!ref.current) return
     const dir = new THREE.Vector3().subVectors(camera.position, ref.current.position)
     dir.y = 0
@@ -90,7 +40,6 @@ export function VillageNpc({
       )
     }
     setInRange(camera.position.distanceTo(ref.current.position) < 6)
-    ref.current.position.y = Math.sin(state.clock.elapsedTime * 1.5 + position[0]) * 0.03
   })
 
   useEffect(() => {
@@ -105,44 +54,7 @@ export function VillageNpc({
 
   return (
     <group ref={ref} position={position}>
-      <group scale={bodyScale}>
-        <ToonPart
-          geom={<capsuleGeometry args={[0.32, 0.9, 6, 10]} />}
-          color={style.robe}
-          gradientMap={gradientMap}
-          position={[0, 0.95, 0]}
-        />
-        <ToonPart
-          geom={<sphereGeometry args={[0.32, 10, 10]} />}
-          color={style.skin}
-          gradientMap={gradientMap}
-          position={[0, 1.85, 0]}
-        />
-        {role === 'elder' && (
-          <ToonPart
-            geom={<boxGeometry args={[0.5, 0.08, 0.35]} />}
-            color={style.accent}
-            gradientMap={gradientMap}
-            position={[0, 2.15, 0]}
-          />
-        )}
-        {role === 'scholar' && (
-          <ToonPart
-            geom={<coneGeometry args={[0.35, 0.35, 6]} />}
-            color={style.accent}
-            gradientMap={gradientMap}
-            position={[0, 2.2, 0]}
-          />
-        )}
-        {role === 'child' && (
-          <ToonPart
-            geom={<sphereGeometry args={[0.12, 6, 6]} />}
-            color="#ffb7c5"
-            gradientMap={gradientMap}
-            position={[0.2, 2.05, 0.15]}
-          />
-        )}
-      </group>
+      <NpcSkeleton role={role} actionRef={actionRef} scale={bodyScale} />
       {inRange && (
         <mesh position={[0, 0.05, 0]} rotation={[-Math.PI / 2, 0, 0]}>
           <ringGeometry args={[0.8, 1, 32]} />
