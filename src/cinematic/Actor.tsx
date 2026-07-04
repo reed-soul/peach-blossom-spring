@@ -3,7 +3,8 @@ import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 import type { ActorAction } from './types'
 import { applyWind, tickWindMaterials } from './WindShader'
-import { getFabricPattern, getBeltPattern } from './textures'
+import { getBeltPattern } from './textures'
+import { getTerrainHeight } from '../components/world/Terrain'
 
 function lerpScalar(a: number, b: number, t: number): number {
   return a + (b - a) * t
@@ -11,27 +12,19 @@ function lerpScalar(a: number, b: number, t: number): number {
 
 // ─────────────────────────────────────────────────────────────
 // 仙侠风渔人：宽袍广袖 · 交领 · 长发 · 束发冠 · 飘带 · 玉佩
-// 飘动用顶点着色器（onBeforeCompile），保持 toon 卡通渲染
+// 用 MeshStandardMaterial（PBR）保证颜色在所有 GPU 上鲜艳一致；
+// 飘动用顶点着色器（onBeforeCompile）；描边用背面法线外扩。
 // ─────────────────────────────────────────────────────────────
 
-// 5 级明暗的 toon 渐变贴图（比 3 级更柔和，告别硬边卡通）
-function useGradientMap() {
+// PBR 布料材质：指定颜色 + 织物法线感（roughness 偏高，模拟哑光布）
+function useClothMat(color: string, roughness = 0.88) {
   return useMemo(() => {
-    const data = new Uint8Array([60, 120, 170, 215, 250])
-    const tex = new THREE.DataTexture(data, data.length, 1, THREE.RedFormat)
-    tex.needsUpdate = true
-    tex.minFilter = THREE.NearestFilter
-    tex.magFilter = THREE.NearestFilter
-    return tex
-  }, [])
-}
-
-// 创建一个带描边的 toon 材质（描边=背面法线外扩的黑色外壳）
-function useToonMat(color: string, gradientMap: THREE.Texture) {
-  return useMemo(() => {
-    const mat = new THREE.MeshToonMaterial({ color, gradientMap })
-    return mat
-  }, [color, gradientMap])
+    return new THREE.MeshStandardMaterial({
+      color: new THREE.Color(color),
+      roughness,
+      metalness: 0.0,
+    })
+  }, [color, roughness])
 }
 
 // 描边 mesh：复制几何，放大 + 背面 + 黑色
@@ -102,42 +95,32 @@ export function ActorProcedural({ posRef, facingRef, actionRef, onStep }: ActorP
     leftArmX: 0.15, rightArmX: 0.15,
   })
 
-  const gradient = useGradientMap()
-
-  // 配色（仙侠青衫文人）
-  const mRobe = useToonMat('#3a6e7a', gradient) // 外袍青
-  const mSleeve = useToonMat('#3a6e7a', gradient) // 广袖（同色但独立风参数）
-  const mInner = useToonMat('#ede4d0', gradient) // 内衫米白
-  const mBelt = useToonMat('#4a3220', gradient) // 腰带深褐
-  const mSkin = useToonMat('#f2d2ac', gradient) // 肤色
-  const mHair = useToonMat('#1a1612', gradient) // 发色
+  // 配色（仙侠青衫文人）— 用 PBR 材质保证颜色鲜艳
+  const mRobe = useClothMat('#3a6e7a') // 外袍青
+  const mSleeve = useClothMat('#3a6e7a') // 广袖（同色但独立风参数）
+  const mInner = useClothMat('#ede4d0') // 内衫米白
+  const mBelt = useClothMat('#4a3220') // 腰带深褐
+  const mSkin = useClothMat('#f2d2ac', 0.65) // 肤色（皮肤比布料更光滑）
+  const mHair = useClothMat('#1a1612', 0.7) // 发色
   const mCrown = useMemo(
     () => new THREE.MeshStandardMaterial({ color: '#c9a24a', metalness: 0.85, roughness: 0.25, emissive: new THREE.Color('#3a2810'), emissiveIntensity: 0.15 }),
     [],
   )
-  const mBoot = useToonMat('#241c16', gradient)
+  const mBoot = useClothMat('#241c16', 0.7)
 
-  // 程序化布料纹理：fabric map 给袍/袖/内衫加织物表面质感（告别纯色橡皮泥）
+  // 腰带回纹暗花（emissiveMap，低强度）
   useMemo(() => {
-    const fabric = getFabricPattern()
-    mRobe.map = fabric
-    mRobe.needsUpdate = true
-    mSleeve.map = fabric
-    mSleeve.needsUpdate = true
-    mInner.map = fabric
-    mInner.needsUpdate = true
-    // 腰带保留 emissiveMap 回纹暗花
     const belt = getBeltPattern()
     mBelt.emissive = new THREE.Color('#3a2810')
     mBelt.emissiveMap = belt
     mBelt.emissiveIntensity = 0.25
     mBelt.needsUpdate = true
-  }, [mRobe, mSleeve, mInner, mBelt])
+  }, [mBelt])
   const mJade = useMemo(
     () => new THREE.MeshStandardMaterial({ color: '#5fa88a', metalness: 0.3, roughness: 0.4 }),
     [],
   )
-  const mSash = useToonMat('#7a3030', gradient) // 飘带暗红
+  const mSash = useClothMat('#7a3030') // 飘带暗红
 
   // 飘动部件的描边材质（黑色背面 + 同样的风参数，确保描边跟随本体飘动）
   const mRobeOutline = useMemo(() => {
@@ -213,9 +196,11 @@ export function ActorProcedural({ posRef, facingRef, actionRef, onStep }: ActorP
   useFrame((state, delta) => {
     const g = root.current
     if (!g) return
-    const [x, y, z] = posRef.current
+    const [x, , z] = posRef.current
+    // y 跟随地形高度（解决穿地问题；脚本侧 y 不再使用）
+    const groundY = getTerrainHeight(x, z)
     // 平滑跟随目标位置，避免镜头跳变时角色瞬移
-    g.position.lerp(tmpVec.set(x, y, z), 0.2)
+    g.position.lerp(tmpVec.set(x, groundY, z), 0.2)
     // 朝向平滑
     const targetY = facingRef.current
     let dy = targetY - g.rotation.y
@@ -297,8 +282,10 @@ export function ActorProcedural({ posRef, facingRef, actionRef, onStep }: ActorP
     if (rightSleeve.current) rightSleeve.current.rotation.x = b.rightArmX
   })
 
+  // 整体放大（程序化角色原生约 1.7 单位高，放大到 ~2.0 让镜头里更清晰）
+  const SCALE = 1.2
   return (
-    <group ref={root} position={[0, 0, 0]}>
+    <group ref={root} position={[0, 0, 0]} scale={SCALE}>
       <group ref={body}>
         {/* ===== 长袍下摆（本体+描边都带风，成对） ===== */}
         <group ref={robeGroup} position={[0, 0.55, 0]}>
@@ -340,30 +327,30 @@ export function ActorProcedural({ posRef, facingRef, actionRef, onStep }: ActorP
           {/* 眉（细长，略上扬的国风剑眉） */}
           <mesh position={[-0.08, 0.22, -0.22]} rotation={[0, 0, -0.15]}>
             <boxGeometry args={[0.1, 0.015, 0.02]} />
-            <meshToonMaterial color={mHair.color} gradientMap={gradient} />
+            <meshStandardMaterial color={mHair.color} roughness={0.7} />
           </mesh>
           <mesh position={[0.08, 0.22, -0.22]} rotation={[0, 0, 0.15]}>
             <boxGeometry args={[0.1, 0.015, 0.02]} />
-            <meshToonMaterial color={mHair.color} gradientMap={gradient} />
+            <meshStandardMaterial color={mHair.color} roughness={0.7} />
           </mesh>
           {/* 眼（眯眼线条，国风写意，不画眼白） */}
           <mesh position={[-0.08, 0.14, -0.235]} rotation={[0, 0, 0.1]}>
             <boxGeometry args={[0.08, 0.012, 0.015]} />
-            <meshToonMaterial color={'#1a1612'} gradientMap={gradient} />
+            <meshStandardMaterial color={'#1a1612'} roughness={0.5} />
           </mesh>
           <mesh position={[0.08, 0.14, -0.235]} rotation={[0, 0, -0.1]}>
             <boxGeometry args={[0.08, 0.012, 0.015]} />
-            <meshToonMaterial color={'#1a1612'} gradientMap={gradient} />
+            <meshStandardMaterial color={'#1a1612'} roughness={0.5} />
           </mesh>
           {/* 鼻（小三角锥，侧面才明显） */}
           <mesh position={[0, 0.1, -0.25]} rotation={[Math.PI, 0, 0]}>
             <coneGeometry args={[0.025, 0.06, 6]} />
-            <meshToonMaterial color={'#e8c4a0'} gradientMap={gradient} />
+            <meshStandardMaterial color={'#e8c4a0'} roughness={0.65} />
           </mesh>
           {/* 嘴（微抿，淡红） */}
           <mesh position={[0, 0.02, -0.245]}>
             <boxGeometry args={[0.06, 0.012, 0.015]} />
-            <meshToonMaterial color={'#a85a4a'} gradientMap={gradient} />
+            <meshStandardMaterial color={'#a85a4a'} roughness={0.6} />
           </mesh>
 
           {/* 背后长发（本体+描边都带风） */}
@@ -408,12 +395,18 @@ export function ActorProcedural({ posRef, facingRef, actionRef, onStep }: ActorP
 
 const tmpVec = new THREE.Vector3()
 
-// ───────── Actor 分发：优先用 GLB 模型，加载失败回退程序化 ─────────
-
-// 默认用 GLB（Xbot 人形骨架，清晰可辨识）；?noglb 回退程序化（仅调试用）
-const GLB_ENABLED = (() => {
-  if (typeof window === 'undefined') return false
-  return !new URLSearchParams(window.location.search).has('noglb')
+// ───────── Actor 分发 ─────────
+// 默认用程序化角色（专为桃花源记定制的仙侠青衫文人：五官/广袖/束发冠/飘带/玉佩）。
+// 所有尝试过的 GLB 模型都不合格：
+//   - Xbot：黄色秃头现代运动角色，时代错误
+//   - meshy "渔人"：实际是机械蛙形生物（黄色护目镜+机械结构），完全不可用
+//   - soldier/readyplayer：现代人/士兵，与古风不符
+// 程序化角色反而最贴合主题且无渲染隐患。
+// 调试：?glb=<name> 可强制指定 GLB 模型（如 ?glb=soldier）。
+const GLB_NAME = (() => {
+  if (typeof window === 'undefined') return null
+  const q = new URLSearchParams(window.location.search).get('glb')
+  return q || null
 })()
 
 interface BoundaryProps {
@@ -437,12 +430,12 @@ class ActorBoundary extends Component<BoundaryProps, BoundaryState> {
 }
 
 import { ActorGLB } from './ActorGLB'
-// 对外组件：GLB 优先（ErrorBoundary 兜底），失败回退 ActorProcedural
+// 对外组件：默认程序化角色；?glb=<name> 时走 GLB（ErrorBoundary 兜底）
 export function Actor(props: ActorProps) {
-  if (!GLB_ENABLED) return <ActorProcedural {...props} />
+  if (!GLB_NAME) return <ActorProcedural {...props} />
   return (
     <ActorBoundary fallback={<ActorProcedural {...props} />}>
-      <ActorGLB {...props} />
+      <ActorGLB {...props} glbName={GLB_NAME} />
     </ActorBoundary>
   )
 }

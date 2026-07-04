@@ -6,9 +6,14 @@ import type { ActorAction } from './types'
 import type { ActorProps } from './Actor'
 import { getTerrainHeight } from '../components/world/Terrain'
 
-const MODEL_URL = `${import.meta.env.BASE_URL}models/fisherman.glb`
+// GLB 模型表（仅 ?glb=<name> 时启用，默认走程序化角色）
+const MODELS: Record<string, string> = {
+  soldier: `${import.meta.env.BASE_URL}models/npcs/soldier.glb`,
+  readyplayer: `${import.meta.env.BASE_URL}models/npcs/readyplayer.glb`,
+  michelle: `${import.meta.env.BASE_URL}models/npcs/michelle.glb`,
+}
 
-// Xbot.glb 动画名（小写）
+// 有骨骼动画时的 clip 映射（Xbot 等带动画模型用）
 const CLIP_FOR: Record<ActorAction, string> = {
   idle: 'idle',
   walk: 'walk',
@@ -17,95 +22,91 @@ const CLIP_FOR: Record<ActorAction, string> = {
   sit: 'idle',
 }
 
-// ActorGLB：用 Xbot 人形骨架（CC0）+ 骨骼动画。
-// Xbot 是清晰的真人形（有面部/四肢/步态），比程序化色块和 Soldier 都好。
-export function ActorGLB({ posRef, facingRef, actionRef, onStep }: ActorProps) {
+export interface ActorGLBProps extends ActorProps {
+  glbName: string
+}
+
+export function ActorGLB({ posRef, facingRef, actionRef, onStep, glbName }: ActorGLBProps) {
+  const MODEL_URL = MODELS[glbName] || MODELS.soldier
   const group = useRef<THREE.Group>(null)
   const { scene, animations } = useGLTF(MODEL_URL) as any
   const { actions, names } = useAnimations(animations, group)
 
-  // 克隆场景避免污染缓存（多实例安全）
-  const cloned = useMemo(() => scene.clone(true), [scene])
+  // 不 clone（骨骼模型 clone 会断 skeleton；静态模型不需要 clone）
+  const hasAnimations = animations && animations.length > 0
 
-  // 遍历让所有 mesh 投射/接收阴影 + 增强环境反射（消除"漂浮+塑料感"）
+  // 遍历让所有 mesh 投射/接收阴影 + 增强 envMap
   useEffect(() => {
-    cloned.traverse((o: any) => {
+    scene.traverse((o: any) => {
       if (o.isMesh) {
         o.castShadow = true
         o.receiveShadow = true
         if (o.material) {
           if (Array.isArray(o.material)) {
-            o.material.forEach((m: any) => { if (m.envMapIntensity !== undefined) m.envMapIntensity = 1.2 })
+            o.material.forEach((m: any) => { if (m.envMapIntensity !== undefined) m.envMapIntensity = 1.0 })
           } else if (o.material.envMapIntensity !== undefined) {
-            o.material.envMapIntensity = 1.2
+            o.material.envMapIntensity = 1.0
           }
         }
       }
     })
-  }, [cloned])
+  }, [scene])
 
-  // 当前播放的 clip，用于切换
   const currentClip = useRef<string | null>(null)
   const stepPhase = useRef(0)
   const lastStepSign = useRef(1)
 
-  // 进入时播 idle
+  // 有动画时播 idle
   useEffect(() => {
-    const idle = actions['idle']
+    if (!hasAnimations) return
+    const idle = actions['idle'] || actions[names[0]]
     if (idle) {
       idle.reset().fadeIn(0.3).play()
-      currentClip.current = 'idle'
+      currentClip.current = names[0]
     }
-    return () => {
-      // 清理：停所有
-      names.forEach((n: string) => actions[n]?.stop())
-    }
-  }, [actions, names])
+    return () => { names.forEach((n: string) => actions[n]?.stop()) }
+  }, [actions, names, hasAnimations])
 
   useFrame((_, delta) => {
     const g = group.current
     if (!g) return
     const [x, , z] = posRef.current
-    // y 跟随地形高度（修穿地），略抬高避免脚陷入地表
+    // y 跟随地形高度
     const groundY = getTerrainHeight(x, z)
     g.position.set(x, groundY, z)
 
-    // 朝向：Soldier 默认朝 +z，我们 facing=π 朝 -z，故加 Math.PI 对齐
-    // 平滑跟随
+    // 朝向平滑跟随（meshy 模型朝向未知，加 Math.PI 对齐 facing=π）
     const targetY = facingRef.current + Math.PI
     let dy = targetY - g.rotation.y
     while (dy > Math.PI) dy -= Math.PI * 2
     while (dy < -Math.PI) dy += Math.PI * 2
     g.rotation.y += dy * 0.18
 
-    // 动作切换
-    const action = actionRef.current
-    const wantClip = CLIP_FOR[action] || 'idle'
-    if (currentClip.current !== wantClip && actions[wantClip]) {
-      const prev = actions[currentClip.current!]
-      const next = actions[wantClip]
-      if (prev) prev.fadeOut(0.25)
-      next.reset().setEffectiveWeight(1).fadeIn(0.25).play()
-      currentClip.current = wantClip
-    }
-
-    // 脚步声：Walk 动画时按频率触发
-    if ((action === 'walk' || action === 'enter') && onStep) {
-      stepPhase.current += delta * 2.4 // 步频
-      const sign = Math.sin(stepPhase.current) >= 0 ? 1 : -1
-      if (sign !== lastStepSign.current) {
-        lastStepSign.current = sign
-        onStep()
+    // 动画切换（仅当模型有动画时）
+    if (hasAnimations) {
+      const action = actionRef.current
+      const wantClip = CLIP_FOR[action] || 'idle'
+      if (currentClip.current !== wantClip && actions[wantClip]) {
+        const prev = actions[currentClip.current!]
+        const next = actions[wantClip]
+        if (prev) prev.fadeOut(0.25)
+        next.reset().setEffectiveWeight(1).fadeIn(0.25).play()
+        currentClip.current = wantClip
+      }
+      // 脚步声
+      if ((action === 'walk' || action === 'enter') && onStep) {
+        stepPhase.current += delta * 2.4
+        const sign = Math.sin(stepPhase.current) >= 0 ? 1 : -1
+        if (sign !== lastStepSign.current) { lastStepSign.current = sign; onStep() }
       }
     }
   })
 
+  // scale 适配（不同模型大小不一，soldier 用 1.0，其余可调）
+  const scale = glbName === 'soldier' ? 1.0 : 1.5
   return (
-    <group ref={group} rotation={[0, Math.PI, 0]} scale={1.8}>
-      <primitive object={cloned} />
+    <group ref={group} rotation={[0, Math.PI, 0]} scale={scale}>
+      <primitive object={scene} />
     </group>
   )
 }
-
-// 预加载
-useGLTF.preload(MODEL_URL)
