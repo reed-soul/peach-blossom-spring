@@ -1,5 +1,4 @@
 import { useRef, useMemo, useEffect } from 'react'
-import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three/webgpu'
 import { createGrassAlphaTexture } from './proceduralTextures'
 import { createBillboardMaterial } from './shaders/billboardInstanced'
@@ -40,7 +39,6 @@ const GRASS_COLORS = [
 
 export function GroundCover() {
   const meshRef = useRef<THREE.InstancedMesh>(null)
-  const matRef = useRef<THREE.ShaderMaterial>(null)
   // 提升密度：2000 → 6000，配合聚簇分布让草地更茂密自然
   const count = 6000
 
@@ -50,9 +48,10 @@ export function GroundCover() {
     [grassTex],
   )
 
-  useEffect(() => {
-    matRef.current = grassMaterial
-  }, [grassMaterial])
+  // Crossed-quad tuft geometry (SeedThree grass.js 范式): 两片交叉的 plane
+  // 绕 Y 旋转 90°，法线强制朝上 (material 里 normalNode 设了)。
+  // 比单 plane 体积感更好，配合 per-instance Y 旋转形成自然草丛。
+  const tuftGeo = useMemo(() => makeTuftGeometry(), [])
 
   useEffect(() => {
     if (!meshRef.current) return
@@ -61,7 +60,6 @@ export function GroundCover() {
     const colors: THREE.Color[] = []
 
     // 聚簇分布：先撒 ~120 个簇心，每簇周围 gaussian 抖动撒 ~50 株
-    // 比均匀盐粒式更像真实草丛（草成团生长，非均匀铺满）
     const clusterCount = 120
     const perCluster = Math.ceil(count / clusterCount)
     const clusters: { cx: number; cz: number; spread: number }[] = []
@@ -69,7 +67,7 @@ export function GroundCover() {
       clusters.push({
         cx: (rng() - 0.5) * 100,
         cz: (rng() - 0.5) * 100,
-        spread: 2 + rng() * 4, // 簇半径 2~6m
+        spread: 2 + rng() * 4,
       })
     }
 
@@ -77,7 +75,6 @@ export function GroundCover() {
     for (let c = 0; c < clusterCount && placed < count; c++) {
       const cl = clusters[c]!
       for (let k = 0; k < perCluster && placed < count; k++) {
-        // gaussian 抖动（3 次均匀求和近似正态）：草集中在簇心附近
         const gx = (rng() + rng() + rng() - 1.5) * cl.spread
         const gz = (rng() + rng() + rng() - 1.5) * cl.spread
         const x = cl.cx + gx
@@ -85,7 +82,6 @@ export function GroundCover() {
 
         const y = getTerrainHeight(x, z)
         if (y < -0.2) {
-          // 低洼区不生草：缩到极小而非 0（避免被裁但仍占 draw）
           mat.identity()
           mat.makeScale(1e-4, 1e-4, 1e-4)
           meshRef.current.setMatrixAt(placed, mat)
@@ -101,7 +97,7 @@ export function GroundCover() {
         mat.compose(
           new THREE.Vector3(x, y, z),
           quat,
-          new THREE.Vector3(widthScale, heightScale, 1),
+          new THREE.Vector3(widthScale, heightScale, widthScale),
         )
         meshRef.current.setMatrixAt(placed, mat)
         colors.push(GRASS_COLORS[Math.floor(rng() * GRASS_COLORS.length)]!)
@@ -113,22 +109,50 @@ export function GroundCover() {
     meshRef.current.instanceMatrix.needsUpdate = true
   }, [])
 
-  useFrame((state) => {
-    if (matRef.current) {
-      matRef.current.uniforms.uTime.value = state.clock.elapsedTime
-    }
-  })
+  // TSL time 节点自动推进，不需要 useFrame 更新 uTime。
 
   return (
     <instancedMesh
       ref={meshRef}
-      args={[undefined, undefined, count]}
-      material={grassMaterial}
+      args={[tuftGeo, grassMaterial, count]}
       receiveShadow
-    >
-      <planeGeometry args={[1, 1]} />
-    </instancedMesh>
+    />
   )
+}
+
+// Crossed-quad tuft: 两个 plane 绕 Y 旋转 90° 交叉，base 在 y=0、tip 在 y=1。
+// 法线强制朝上（ grass trick：像地面一样接受光照，不闪烁）。
+function makeTuftGeometry(): THREE.BufferGeometry {
+  const planes = 2
+  const width = 1
+  const positions: number[] = []
+  const normals: number[] = []
+  const uvs: number[] = []
+  const indices: number[] = []
+  let base = 0
+  for (let q = 0; q < planes; q++) {
+    const a = (q * Math.PI) / planes
+    const ca = Math.cos(a)
+    const sa = Math.sin(a)
+    for (const [lx, ly] of [
+      [-0.5 * width, 0],
+      [0.5 * width, 0],
+      [0.5 * width, 1],
+      [-0.5 * width, 1],
+    ]) {
+      positions.push(lx[0]! * ca, ly, lx[0]! * sa)
+      normals.push(0, 1, 0)
+      uvs.push(lx[0]! / width + 0.5, ly)
+    }
+    indices.push(base, base + 1, base + 2, base, base + 2, base + 3)
+    base += 4
+  }
+  const g = new THREE.BufferGeometry()
+  g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(positions), 3))
+  g.setAttribute('normal', new THREE.BufferAttribute(new Float32Array(normals), 3))
+  g.setAttribute('uv', new THREE.BufferAttribute(new Float32Array(uvs), 2))
+  g.setIndex(indices)
+  return g
 }
 
 export function Rocks() {

@@ -27,7 +27,7 @@ import {
 } from 'three/webgpu'
 import type { Tip } from './weber-penn'
 import type { FoliageConfig } from '../species/peach'
-import { WIND_DIR } from '../shaders/windUniforms'
+import { WIND_DIR } from '../shaders/wind'
 
 const X = new Vector3(1, 0, 0)
 const Y = new Vector3(0, 1, 0)
@@ -38,7 +38,7 @@ const GOLDEN = (137.5 * Math.PI) / 180
 export interface FoliageBuildResult {
   geometry: BufferGeometry
   count: number
-  /** canopy bottom in WORLD space — feed to foliageShader.setCanopyBottom */
+  /** canopy bottom in WORLD space — feed to makeFoliageMaterial's center */
   canopyBottom: Vector3
   /** per-petal model matrices — InstancedMesh.setMatrixAt(i, matrices[i]) */
   matrices: Matrix4[]

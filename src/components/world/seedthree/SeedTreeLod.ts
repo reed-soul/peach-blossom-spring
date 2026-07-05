@@ -19,8 +19,8 @@ import { buildBranchGeometry } from './core/branch-mesh'
 import { buildFoliage } from './core/leafCards'
 import type { SpeciesPreset } from './species/peach'
 import { peach } from './species/peach'
-import type { ForestSharedAssets } from './SingleTree'
-import { createFoliageMaterial } from './shaders/foliageShader'
+import type { ForestAssets } from './SingleTree'
+import { makeFoliageMaterial } from './shaders/foliageMaterial'
 
 const _color = new THREE.Color()
 const BLOSSOM_PALETTE = [0xffb7c5, 0xff9eb5, 0xffc0cb, 0xffffff]
@@ -94,7 +94,7 @@ function getCachedLodGeometry(
 export interface BuildLodTreeOptions {
   species?: SpeciesPreset
   seed: string | number
-  assets: ForestSharedAssets
+  assets: ForestAssets
   /** LOD level specs (excluding the billboard, which is attached later) */
   levels?: LodLevelSpec[]
   /** hysteresis fraction (0.05 = 5%) — softens LOD transitions */
@@ -128,17 +128,13 @@ export function buildLodTree(opts: BuildLodTreeOptions): THREE.LOD {
     branchMesh.receiveShadow = true
     level.add(branchMesh)
 
-    // Foliage — per-tree material clone (own canopyBottom uniform).
+    // Foliage — per-tree material (own canopyBottom/dome uniform).
     if (lv.foliage) {
-      const foliageMat = createFoliageMaterial(opts.assets.foliageTemplate, {
-        wind: opts.assets.wind,
-        transmitColor: new THREE.Color(0.95, 0.7, 0.78),
-        translucencyMap: opts.assets.translucencyMap,
+      const foliageMat = makeFoliageMaterial(opts.assets.foliageAssets, {
+        tint: species.foliage.tint,
+        alphaTest: species.foliage.alphaTest,
+        center: lv.foliage.canopyBottom,
       })
-      foliageMat.setCanopyBottom(lv.foliage.canopyBottom)
-      // Only LOD0's foliage needs per-frame updates; LOD1+ share its wind but
-      // their canopyBottom is fixed at build time. We still register them all
-      // so the wind uTime uniform advances correctly.
       opts.assets.foliageMaterials.push(foliageMat)
 
       const mesh = new THREE.InstancedMesh(lv.foliage.geometry, foliageMat.material, lv.foliage.count)

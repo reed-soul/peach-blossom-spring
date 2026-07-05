@@ -1,18 +1,17 @@
-// WebGL impostor baker — renders a tree's LOD0 into 2 albedo billboards
-// (front + side ortho views) for use as the farthest LOD level.
+// WebGPU billboard impostor baker.
 //
-// Adapted from SeedThree's impostor.js (MIT, Copyright (c) 2026 SkyeShark),
-// rewritten for three.js WebGLRenderer:
-//   - WebGLRenderTarget instead of WebGPU RenderTarget
-//   - renderer.readRenderTargetPixels (sync) instead of readRenderTargetPixelsAsync
-//   - We bake ONLY albedo (vs SeedThree's 4 channels: albedo/normal/roughness/
-//     translucency). At billboard distance the SSS/normal detail is imperceptible,
-//     and a single-channel bake keeps this module ~150 lines vs ~600.
+// Adapted from SeedThree (MIT, Copyright (c) 2026 SkyeShark) src/core/impostor.js,
+// for the WebGPURenderer API:
+//   - RenderTarget from 'three/webgpu' (was WebGLRenderTarget)
+//   - renderer.readRenderTargetPixelsAsync (async; was sync readRenderTargetPixels)
+//   - MeshBasicNodeMaterial override (was MeshBasicMaterial; works on WebGPU)
+// We bake ONLY albedo (single channel) — at billboard distance the SSS/normal
+// detail is imperceptible, and a single-channel bake keeps this ~150 lines.
 //
-// Output: { frontMap, sideMap, size } — two CanvasTextures + world height of
-// the tree (so the caller can size the billboard planes correctly).
+// Output: { frontMap, sideMap, size } — two CanvasTextures + tree world height.
 
 import * as THREE from 'three/webgpu'
+import { RenderTarget, MeshBasicNodeMaterial } from 'three/webgpu'
 
 const linToSrgb = (u: number): number => {
   const c = u / 255
@@ -87,40 +86,29 @@ function flipRows(data: Uint8ClampedArray, w: number, h: number): void {
 }
 
 export interface BakeOptions {
-  /** render-target resolution per side */
   size?: number
-  /** alpha-dilation passes (kills bilinear dark halos) */
   dilatePasses?: number
 }
 
 export interface BakeResult {
   frontMap: THREE.CanvasTexture
   sideMap: THREE.CanvasTexture
-  /** world-space height of the tree — for billboard plane sizing */
   size: number
 }
 
 /**
- * Bake `sourceRoot` (a tree Group or LOD) into front + side albedo billboards.
+ * Bake `sourceRoot` into front + side albedo billboards.
  *
- * The source is rendered with flat-white lighting (HemisphereLight intensity 1
- * on a white background, materials' lighting contribution washed out by using
- * MeshBasicMaterial overrides via `overrideMaterial`). Output alpha = object
- * coverage (transparent background). After readback we dilate alpha edges and
- * pack into CanvasTextures.
- *
- * The renderer's clear color is preserved; this function is a side-effecting
- * guest on the renderer.
+ * Async because WebGPU readback is async.
  */
-export function bakeImpostor(
+export async function bakeImpostor(
   renderer: THREE.WebGLRenderer,
   sourceRoot: THREE.Object3D,
   opts: BakeOptions = {},
-): BakeResult {
+): Promise<BakeResult> {
   const size = opts.size ?? 256
   const dilatePasses = opts.dilatePasses ?? 12
 
-  // Compute bounds to frame the ortho cameras tightly.
   const bbox = new THREE.Box3().setFromObject(sourceRoot)
   const dim = new THREE.Vector3()
   bbox.getSize(dim)
@@ -129,26 +117,22 @@ export function bakeImpostor(
   const half = Math.max(dim.x, dim.y, dim.z) / 2
   const worldHeight = dim.y
 
-  // Shared scene/cam setup; we reposition the camera per view.
   const scene = new THREE.Scene()
   scene.background = null
   scene.add(sourceRoot)
-  scene.overrideMaterial = new THREE.MeshBasicMaterial({
+  scene.overrideMaterial = new MeshBasicNodeMaterial({
     color: 0xffffff,
     side: THREE.DoubleSide,
   })
 
   const cam = new THREE.OrthographicCamera(-half, half, half, -half, 0.1, half * 6)
-  cam.lookAt(center)
-
-  const rt = new THREE.WebGLRenderTarget(size, size, {
+  const rt = new RenderTarget(size, size, {
     format: THREE.RGBAFormat,
     type: THREE.UnsignedByteType,
     minFilter: THREE.LinearFilter,
     magFilter: THREE.LinearFilter,
   })
 
-  // Save renderer state.
   const prevRT = renderer.getRenderTarget()
   const prevClear = new THREE.Color()
   renderer.getClearColor(prevClear)
@@ -156,54 +140,46 @@ export function bakeImpostor(
   const prevAutoClear = renderer.autoClear
   renderer.autoClear = true
   renderer.setClearColor(0x000000, 0)
-
   renderer.setRenderTarget(rt)
 
-  // ── front view (camera at +Z looking toward -Z) ──
-  cam.position.set(center.x, center.y, center.z + half * 3)
-  cam.lookAt(center)
-  cam.updateProjectionMatrix()
-  renderer.render(scene, cam)
-  const frontPixels = new Uint8Array(size * size * 4)
-  renderer.readRenderTargetPixels(rt, 0, 0, size, size, frontPixels)
+  try {
+    // front view
+    cam.position.set(center.x, center.y, center.z + half * 3)
+    cam.lookAt(center)
+    cam.updateProjectionMatrix()
+    renderer.render(scene, cam)
+    const frontPixels = await (renderer as any).readRenderTargetPixelsAsync(rt, 0, 0, size, size)
 
-  // ── side view (camera at +X looking toward -X) ──
-  cam.position.set(center.x + half * 3, center.y, center.z)
-  cam.lookAt(center)
-  cam.updateProjectionMatrix()
-  renderer.render(scene, cam)
-  const sidePixels = new Uint8Array(size * size * 4)
-  renderer.readRenderTargetPixels(rt, 0, 0, size, size, sidePixels)
+    // side view
+    cam.position.set(center.x + half * 3, center.y, center.z)
+    cam.lookAt(center)
+    cam.updateProjectionMatrix()
+    renderer.render(scene, cam)
+    const sidePixels = await (renderer as any).readRenderTargetPixelsAsync(rt, 0, 0, size, size)
 
-  // Restore renderer state.
-  renderer.setRenderTarget(prevRT)
-  renderer.setClearColor(prevClear, prevClearAlpha)
-  renderer.autoClear = prevAutoClear
-  rt.dispose()
-  scene.overrideMaterial = null
-
-  // ── post-process: linear→sRGB (render targets skip the output transform),
-  //    flip rows (WebGL readback is bottom-first), dilate alpha edges. ──
-  const frontMap = pixelsToTexture(frontPixels, size, dilatePasses)
-  const sideMap = pixelsToTexture(sidePixels, size, dilatePasses)
-
-  return { frontMap, sideMap, size: worldHeight }
+    const frontMap = pixelsToTexture(frontPixels, size, dilatePasses)
+    const sideMap = pixelsToTexture(sidePixels, size, dilatePasses)
+    return { frontMap, sideMap, size: worldHeight }
+  } finally {
+    renderer.setRenderTarget(prevRT)
+    renderer.setClearColor(prevClear, prevClearAlpha)
+    renderer.autoClear = prevAutoClear
+    rt.dispose()
+    scene.overrideMaterial = null
+  }
 }
 
 function pixelsToTexture(pixels: Uint8Array, size: number, dilatePasses: number): THREE.CanvasTexture {
   const data = new Uint8ClampedArray(pixels)
-  // sRGB convert (albedo channel only — alpha stays raw).
   for (let i = 0; i < data.length; i += 4) {
     data[i] = linToSrgb(data[i]!)
     data[i + 1] = linToSrgb(data[i + 1]!)
     data[i + 2] = linToSrgb(data[i + 2]!)
   }
-  // WebGL readback is bottom-first → flip to top-first for canvas drawing.
   flipRows(data, size, size)
   dilate(data, size, size, dilatePasses)
 
   if (typeof document === 'undefined') {
-    // SSR/test: return a placeholder DataTexture (won't render meaningfully).
     const tex = new THREE.DataTexture(data, size, size, THREE.RGBAFormat)
     tex.needsUpdate = true
     return tex as unknown as THREE.CanvasTexture
