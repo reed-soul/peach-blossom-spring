@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Canvas, useFrame } from '@react-three/fiber'
 import { advanceScene } from '../../engine/navigation'
+import { createRenderer } from '../../engine/createRenderer'
 
 const CAPTIONS = [
   { at: 0.5, text: '初极狭，才通人。' },
@@ -97,7 +98,7 @@ export default function CaveTransition() {
 
       {phase === 'tunnel' && (
         <>
-          <Canvas camera={{ position: [0, 1.6, 0], fov: 50, near: 0.1, far: 50 }}>
+          <Canvas camera={{ position: [0, 1.6, 0], fov: 50, near: 0.1, far: 50 }} gl={createRenderer()}>
             <TunnelWalkthrough onDone={finish} onCaption={setCaption} />
           </Canvas>
           {caption && (

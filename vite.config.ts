@@ -15,9 +15,7 @@ export default defineConfig({
       output: {
         manualChunks: {
           'three-core': ['three'],
-          'r3f': ['@react-three/fiber', '@react-three/drei'],
-          // 后处理单独拆分（N8AO/DoF/SMAA 体积不小，且只在 cinematic 用）
-          postprocessing: ['@react-three/postprocessing', 'postprocessing'],
+          r3f: ['@react-three/fiber', '@react-three/drei'],
           // inkjs 叙事引擎单独拆分
           ink: ['inkjs'],
         },

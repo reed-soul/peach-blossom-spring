@@ -4,7 +4,9 @@ import { RigidBody, CuboidCollider } from '@react-three/rapier'
 import { Suspense, useRef, useState, useEffect, useCallback } from 'react'
 import { PlayerController, MobileControls } from '../../engine/PlayerController'
 import { PhysicsWorld } from '../../engine/PhysicsWorld'
-import { ProceduralTrees, GroundCover, Rocks } from '../world/ProceduralTrees'
+import { createRenderer } from '../../engine/createRenderer'
+import { GroundCover, Rocks } from '../world/ProceduralTrees'
+import { SeedThreeForest } from '../world/seedthree/SeedThreeForest'
 import { PetalParticles } from '../world/PetalParticles'
 import { Terrain } from '../world/Terrain'
 import { Stream } from '../world/Stream'
@@ -17,7 +19,7 @@ import { useAudio } from '../../engine/AudioManager'
 import { advanceScene } from '../../engine/navigation'
 import { ForestDetails } from '../../cinematic/world/ForestDetails'
 import { NarrativeCaption } from '../ui/NarrativeCaption'
-import * as THREE from 'three'
+import * as THREE from 'three/webgpu'
 
 export function CaveRocks() {
   const rockData = useRef(
@@ -171,7 +173,7 @@ export default function PeachForestSceneContent() {
       <Canvas
         shadows
         camera={{ position: [0, 1.5, 10], fov: 70, near: 0.1, far: 500 }}
-        gl={{ antialias: true, alpha: false }}
+        gl={createRenderer({ antialias: true })}
       >
         <PhysicsWorld gravity={[0, -9.81, 0]}>
           <fog attach="fog" args={['#f0ebe0', 20, 100]} />
@@ -202,7 +204,7 @@ export default function PeachForestSceneContent() {
             <Terrain />
             <Stream />
             <MountainRange />
-            <ProceduralTrees />
+            <SeedThreeForest />
             <GroundCover />
             <Rocks />
             <PetalParticles />
@@ -214,7 +216,10 @@ export default function PeachForestSceneContent() {
           <ForestCaptionWatcher onCaption={showCaption} />
           <PlayerController position={[0, 3, 10]} />
         </PhysicsWorld>
-        <Compass />
+        {/* Compass temporarily disabled — drei <Html> crashes WebGPURenderer
+            (canvasTarget.domElement.getContext is not a function). Re-enable
+            after migrating Compass to a non-Html overlay. */}
+        {/* <Compass /> */}
         <InkWashEffect inkIntensity={1.3} edgeStrength={1.2} paperRoughness={0.35} />
       </Canvas>
 

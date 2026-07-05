@@ -8,6 +8,7 @@ import { CinematicCamera } from './CinematicCamera'
 import { CinematicWorld } from './world/CinematicWorld'
 import { CaptionBar } from './CaptionBar'
 import { PostFX } from './PostFX'
+import { createRenderer } from '../engine/createRenderer'
 import {
   speak as narratorSpeak,
   cancelNarration,
@@ -213,7 +214,7 @@ export default function CinematicExperience() {
       <Canvas
         shadows="pcsoft"
         camera={{ position: [4, 4, 12], fov: 50, near: 0.1, far: 400 }}
-        gl={{ antialias: true, powerPreference: 'high-performance' }}
+        gl={createRenderer({ antialias: true, powerPreference: 'high-performance' })}
       >
         <DirectorRunner onState={onState} />
         <CinematicWorld />

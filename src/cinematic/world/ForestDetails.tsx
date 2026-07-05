@@ -1,6 +1,6 @@
 import { useMemo, useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
-import * as THREE from 'three'
+import * as THREE from 'three/webgpu'
 import { createPetalAlphaTexture } from '../../components/world/proceduralTextures'
 
 // 仙侠风配色（与现有暖调桃林一致）

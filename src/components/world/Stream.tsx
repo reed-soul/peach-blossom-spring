@@ -1,6 +1,6 @@
 import { useRef, useMemo } from 'react'
 import { useFrame } from '@react-three/fiber'
-import * as THREE from 'three'
+import * as THREE from 'three/webgpu'
 import { createNoise2D } from 'simplex-noise'
 import { PbrTextures } from '../../cinematic/textures/PbrTextures'
 

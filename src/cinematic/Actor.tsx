@@ -1,6 +1,6 @@
 import { useRef, useMemo, Component, ReactNode } from 'react'
 import { useFrame } from '@react-three/fiber'
-import * as THREE from 'three'
+import * as THREE from 'three/webgpu'
 import type { ActorAction } from './types'
 import { applyWind, tickWindMaterials } from './WindShader'
 import { getBeltPattern } from './textures'

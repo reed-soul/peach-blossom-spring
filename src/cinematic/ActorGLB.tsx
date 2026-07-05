@@ -1,7 +1,7 @@
 import { useRef, useEffect, useMemo } from 'react'
 import { useFrame } from '@react-three/fiber'
 import { useGLTF, useAnimations } from '@react-three/drei'
-import * as THREE from 'three'
+import * as THREE from 'three/webgpu'
 import type { ActorAction } from './types'
 import type { ActorProps } from './Actor'
 import { getTerrainHeight } from '../components/world/Terrain'

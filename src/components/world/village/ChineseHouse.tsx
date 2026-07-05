@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import * as THREE from 'three'
+import * as THREE from 'three/webgpu'
 import type { ReactNode } from 'react'
 import { PbrTextures } from '../../../cinematic/textures/PbrTextures'
 

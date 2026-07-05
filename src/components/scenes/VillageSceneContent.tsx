@@ -4,6 +4,7 @@ import { RigidBody, CuboidCollider } from '@react-three/rapier'
 import type { Story } from 'inkjs'
 import { PlayerController, MobileControls } from '../../engine/PlayerController'
 import { PhysicsWorld } from '../../engine/PhysicsWorld'
+import { createRenderer } from '../../engine/createRenderer'
 import { DayNightCycle } from '../world/DayNightCycle'
 import { InkWashEffect } from '../world/InkWashEffect'
 import { VillageTerrain } from '../world/VillageTerrain'
@@ -127,7 +128,7 @@ export default function VillageSceneContent() {
 
   return (
     <div className="w-full h-full relative">
-      <Canvas shadows camera={{ position: [0, 1.5, 15], fov: 70, near: 0.1, far: 300 }}>
+      <Canvas shadows camera={{ position: [0, 1.5, 15], fov: 70, near: 0.1, far: 300 }} gl={createRenderer()}>
         <PhysicsWorld gravity={[0, -9.81, 0]}>
           <fog attach="fog" args={['#f0ebe0', 25, 110]} />
           <DayNightCycle speed={0.012} />

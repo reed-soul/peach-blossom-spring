@@ -1,5 +1,5 @@
 import { useMemo, useRef } from 'react'
-import * as THREE from 'three'
+import * as THREE from 'three/webgpu'
 import { createNoise2D } from 'simplex-noise'
 
 const noise2D = createNoise2D()

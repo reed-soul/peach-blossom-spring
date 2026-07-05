@@ -1,6 +1,6 @@
 import { useFrame, useThree } from '@react-three/fiber'
 import { useRef, useEffect, useState } from 'react'
-import * as THREE from 'three'
+import * as THREE from 'three/webgpu'
 
 export function DayNightCycle({ speed = 0.02 }: { speed?: number }) {
   const dirLightRef = useRef<THREE.DirectionalLight>(null)
