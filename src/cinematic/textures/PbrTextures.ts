@@ -1,4 +1,4 @@
-import * as THREE from 'three'
+import * as THREE from 'three/webgpu'
 
 // 真实 PBR 贴图加载（从 public/textures/ 加载 threejs 官方示例贴图）
 // 替代程序化顶点色，让场景有真实纹理细节

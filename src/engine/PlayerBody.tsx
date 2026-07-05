@@ -1,7 +1,7 @@
 import { useEffect, useRef, useCallback } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import { RigidBody, CapsuleCollider } from '@react-three/rapier'
-import * as THREE from 'three'
+import * as THREE from 'three/webgpu'
 import { touchInput } from './PlayerController'
 import { playFootstep } from './footstep'
 

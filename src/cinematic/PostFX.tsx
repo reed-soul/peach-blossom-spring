@@ -1,20 +1,14 @@
-import { useEffect, useMemo, useRef } from 'react'
-import { useThree, useFrame } from '@react-three/fiber'
-import {
-  EffectComposer,
-  Bloom,
-  Vignette,
-  HueSaturation,
-  BrightnessContrast,
-  N8AO,
-  DepthOfField,
-  SMAA,
-} from '@react-three/postprocessing'
-import { BlendFunction, ToneMappingMode, KernelSize } from 'postprocessing'
-import * as THREE from 'three'
+// ⚠️ TEMPORARY STUB — WebGPU migration Phase A.
+// The @react-three/postprocessing library is incompatible with WebGPURenderer,
+// so the entire EffectComposer chain was removed. This stub preserves the
+// PRESETS color-grading data (consumed by the Phase D TSL rewrite) and renders
+// nothing for now — cinematic mode runs WITHOUT post-processing until Phase D
+// replaces this with a native WebGPU PostProcessing + TSL implementation.
+//
+// Phase D TODO: rewrite using `PostProcessing` from 'three/webgpu' + TSL nodes
+// (bloom/depthOfField/hueShift/vignette). See migration plan §D.
 
-// 每幕的后处理参数预设
-interface FxPreset {
+export interface FxPreset {
   bloomIntensity: number
   bloomThreshold: number
   saturation: number
@@ -27,7 +21,7 @@ interface FxPreset {
 // 按幕调色：第三幕洞内偏冷压暗，第四幕豁然开朗提亮提饱；
 // 第六幕起桃源暖意渐褪，第七幕去色压抑表现迷路，第八幕寂灭收尾——
 // 形成"光一点点被抽走"的视觉悲剧弧线
-const PRESETS: FxPreset[] = [
+export const PRESETS: FxPreset[] = [
   // 幕1 溪流：晨光柔和
   { bloomIntensity: 0.5, bloomThreshold: 0.85, saturation: 0.08, brightness: 0.02, contrast: 0.08, vignetteDark: 0.5, dofFocus: 0.02 },
   // 幕2 桃林：饱和粉嫩、轻微梦幻
@@ -46,115 +40,13 @@ const PRESETS: FxPreset[] = [
   { bloomIntensity: 0.3, bloomThreshold: 0.75, saturation: -0.4, brightness: -0.05, contrast: 0.18, vignetteDark: 0.85, dofFocus: 0.028 },
 ]
 
-function lerp(a: number, b: number, t: number) {
-  return a + (b - a) * t
-}
-
 export interface PostFXProps {
   actIndex: number
 }
 
-export function PostFX({ actIndex }: PostFXProps) {
-  // 当前生效参数（跨帧平滑过渡到目标，避免硬切）
-  const current = useRef({ ...PRESETS[0] })
-  const target = PRESETS[Math.min(actIndex, PRESETS.length - 1)]
-  const { gl } = useThree()
-
-  // ACES 色调映射 + sRGB 输出（电影感调色基础）
-  useEffect(() => {
-    gl.toneMapping = THREE.ACESFilmicToneMapping
-    gl.toneMappingExposure = 1.05
-  }, [gl])
-
-  // 每帧把 current 平滑推向 target
-  useFrame(() => {
-    const c = current.current
-    c.bloomIntensity = lerp(c.bloomIntensity, target.bloomIntensity, 0.03)
-    c.bloomThreshold = lerp(c.bloomThreshold, target.bloomThreshold, 0.03)
-    c.saturation = lerp(c.saturation, target.saturation, 0.03)
-    c.brightness = lerp(c.brightness, target.brightness, 0.03)
-    c.contrast = lerp(c.contrast, target.contrast, 0.03)
-    c.vignetteDark = lerp(c.vignetteDark, target.vignetteDark, 0.03)
-  })
-
-  // effect 实例的 ref，用于每帧直接改 uniform（props 不会因 ref 变化重渲染）
-  const bloomRef = useRef<any>(null)
-  const hueRef = useRef<any>(null)
-  const brightRef = useRef<any>(null)
-  const vignetteRef = useRef<any>(null)
-  const dofRef = useRef<any>(null)
-
-  useFrame(() => {
-    const c = current.current
-    // postprocessing effect 的参数在 .uniforms 或直接属性上
-    if (bloomRef.current) {
-      bloomRef.current.intensity = c.bloomIntensity
-      if (bloomRef.current.luminancePass) bloomRef.current.luminancePass.threshold = c.bloomThreshold
-    }
-    if (hueRef.current?.uniforms?.saturation) hueRef.current.uniforms.saturation.value = c.saturation
-    if (brightRef.current) {
-      if (brightRef.current.uniforms?.brightness) brightRef.current.uniforms.brightness.value = c.brightness
-      if (brightRef.current.uniforms?.contrast) brightRef.current.uniforms.contrast.value = c.contrast
-    }
-    if (vignetteRef.current?.uniforms?.darkness) vignetteRef.current.uniforms.darkness.value = c.vignetteDark
-    // DoF 焦距随幕过渡（c.dofFocus 0.015..0.028）
-    if (dofRef.current) {
-      const dof = dofRef.current
-      // DepthOfField effect 的 focusDistance 在 .uniforms 或属性
-      const target = c.dofFocus
-      // 平滑过渡
-      if (dof.uniforms?.focusDistance) {
-        dof.uniforms.focusDistance.value = lerp(dof.uniforms.focusDistance.value, target, 0.05)
-      } else if (dof.focusDistance !== undefined) {
-        dof.focusDistance = lerp(dof.focusDistance, target, 0.05)
-      }
-    }
-  })
-
-  return (
-    <EffectComposer multisampling={4}>
-      {/* 环境光遮蔽：屋檐下/树根/墙角自动出现接触阴影，消除"漂浮感" */}
-      <N8AO
-        aoRadius={8}
-        aoSamples={8}
-        intensity={1.5}
-        denoiseSamples={1}
-        halfRes
-      />
-      <Bloom
-        ref={bloomRef}
-        intensity={current.current.bloomIntensity}
-        luminanceThreshold={current.current.bloomThreshold}
-        luminanceSmoothing={0.4}
-        mipmapBlur
-        kernelSize={KernelSize.LARGE}
-      />
-      {/* 景深：接通之前死代码 dofFocus 字段（0.015..0.028）
-          bokehScale 保守设 1.5（之前 2.4 太糊），focalLength 小避免大面积模糊 */}
-      <DepthOfField
-        ref={dofRef}
-        focusDistance={current.current.dofFocus}
-        focalLength={0.04}
-        bokehScale={1.5}
-      />
-      <HueSaturation
-        ref={hueRef}
-        saturation={current.current.saturation}
-        blendFunction={BlendFunction.NORMAL}
-      />
-      <BrightnessContrast
-        ref={brightRef}
-        brightness={current.current.brightness}
-        contrast={current.current.contrast}
-      />
-      <Vignette
-        ref={vignetteRef}
-        offset={0.3}
-        darkness={current.current.vignetteDark}
-        blendFunction={BlendFunction.NORMAL}
-      />
-      {/* 抗锯齿：叠加在 multisampling=4 之上，进一步锐化边缘 */}
-      <SMAA />
-    </EffectComposer>
-  )
+// No-op until Phase D. ACES tone mapping + sRGB will be set on the renderer
+// itself (gl factory) so the scene still renders with correct color, just
+// without the per-act grade.
+export function PostFX({ actIndex: _actIndex }: PostFXProps) {
+  return null
 }

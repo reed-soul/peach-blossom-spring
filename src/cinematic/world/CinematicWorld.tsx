@@ -1,15 +1,12 @@
 import { Suspense, useEffect, useMemo } from 'react'
 import { useThree } from '@react-three/fiber'
 import { Environment, Lightformer } from '@react-three/drei'
-import * as THREE from 'three'
+import * as THREE from 'three/webgpu'
 import { Terrain } from '../../components/world/Terrain'
 import { Stream } from '../../components/world/Stream'
 import { MountainRange } from '../../components/world/MountainRange'
-import {
-  ProceduralTrees,
-  GroundCover,
-  Rocks,
-} from '../../components/world/ProceduralTrees'
+import { GroundCover, Rocks } from '../../components/world/ProceduralTrees'
+import { SeedThreeForest } from '../../components/world/seedthree/SeedThreeForest'
 import { PetalParticles } from '../../components/world/PetalParticles'
 
 // 体积光（god ray）：半透圆锥模拟阳光光柱（Cursor 重构 PeachForestScene 后
@@ -168,7 +165,7 @@ export function CinematicWorld() {
         <Terrain />
         <Stream />
         <MountainRange />
-        <ProceduralTrees />
+        <SeedThreeForest />
         <GroundCover />
         <Rocks />
         <PetalParticles />

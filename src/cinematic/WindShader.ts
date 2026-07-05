@@ -1,4 +1,4 @@
-import * as THREE from 'three'
+import * as THREE from 'three/webgpu'
 
 /**
  * 给一个 meshToonMaterial 注入顶点级"风/飘动"动画。

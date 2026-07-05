@@ -1,4 +1,4 @@
-import * as THREE from 'three'
+import * as THREE from 'three/webgpu'
 
 // 程序化生成的国风织锦暗纹纹理（云纹/回纹），用作袍/领/腰带的细节叠加
 // 全部 canvas 绘制，零外部资源

@@ -1,32 +1,25 @@
-import * as THREE from 'three'
+import * as THREE from 'three/webgpu'
+import { uniform, normalize, max, mix, Fn, vec3, positionWorld, color } from 'three/tsl'
+
+// Gradient sky dome — TSL port of the original GLSL shader.
+// Fragment: blend between top and bottom colors based on the normalized
+// world-position Y. Runs on meshBasicNodeMaterial with a custom colorNode.
+const skyGradient = Fn(([topColor, bottomColor]) => {
+  const h = normalize(positionWorld).y
+  return vec3(mix(bottomColor, topColor, max(h, 0)))
+})
 
 export function SkyDome() {
+  const topColor = uniform(color(0xf5f0e0))
+  const bottomColor = uniform(color(0xe8dcc8))
+
   return (
     <mesh scale={[-1, 1, 1]}>
       <sphereGeometry args={[200, 32, 32]} />
-      <shaderMaterial
+      <meshBasicNodeMaterial
         side={THREE.BackSide}
-        uniforms={{
-          topColor: { value: new THREE.Color(0xf5f0e0) },
-          bottomColor: { value: new THREE.Color(0xe8dcc8) },
-        }}
-        vertexShader={`
-          varying vec3 vWorldPosition;
-          void main() {
-            vec4 worldPosition = modelMatrix * vec4(position, 1.0);
-            vWorldPosition = worldPosition.xyz;
-            gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-          }
-        `}
-        fragmentShader={`
-          uniform vec3 topColor;
-          uniform vec3 bottomColor;
-          varying vec3 vWorldPosition;
-          void main() {
-            float h = normalize(vWorldPosition).y;
-            gl_FragColor = vec4(mix(bottomColor, topColor, max(h, 0.0)), 1.0);
-          }
-        `}
+        depthWrite={false}
+        colorNode={skyGradient(topColor, bottomColor)}
       />
     </mesh>
   )

@@ -1,6 +1,6 @@
 import { useRef, useMemo } from 'react'
 import { useFrame } from '@react-three/fiber'
-import * as THREE from 'three'
+import * as THREE from 'three/webgpu'
 import { createPetalAlphaTexture } from './proceduralTextures'
 
 const PETAL_COUNT = 3000

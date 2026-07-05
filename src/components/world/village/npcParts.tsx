@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import type { ReactNode, RefObject } from 'react'
-import * as THREE from 'three'
+import * as THREE from 'three/webgpu'
 
 export type NpcFigureRole = 'elder' | 'fisher' | 'scholar' | 'child' | 'farmer'
 

@@ -1,6 +1,6 @@
 import { useRef, useMemo } from 'react'
 import { useFrame } from '@react-three/fiber'
-import * as THREE from 'three'
+import * as THREE from 'three/webgpu'
 
 // ─────────────────────────────────────────────────────────────
 // 炊烟粒子：Points + 自定义 shader，缓慢上升 + 扩散变淡
