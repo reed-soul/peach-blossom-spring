@@ -3,8 +3,47 @@ import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three/webgpu'
 import { createNoise2D } from 'simplex-noise'
 import { PbrTextures } from '../../cinematic/textures/PbrTextures'
+import {
+  uniform,
+  time,
+  Fn,
+  vec2,
+  vec3,
+  vec4,
+  sin,
+  cos,
+  fract,
+  floor,
+  dot,
+  float,
+  mix,
+  pow,
+  max,
+  min,
+  smoothstep,
+  normalize,
+  texture,
+  positionLocal,
+  uv,
+  cameraPosition,
+  modelWorldMatrix,
+  sub,
+} from 'three/tsl'
 
 const noise2D = createNoise2D()
+
+// Hash + value noise TSL helpers (port of the GLSL originals).
+const hash = Fn(([p]) => fract(sin(dot(p, vec2(127.1, 311.7))).mul(43758.5453)))
+const valueNoise = Fn(([p]) => {
+  const i = floor(p)
+  const f = fract(p)
+  const ff = f.mul(f).mul(sub(3, f.mul(2)))
+  const a = hash(i)
+  const b = hash(i.add(vec2(1, 0)))
+  const c = hash(i.add(vec2(0, 1)))
+  const d = hash(i.add(vec2(1, 1)))
+  return mix(mix(a, b, ff.x), mix(c, d, ff.x), ff.y)
+})
 
 export function Stream() {
   const meshRef = useRef<THREE.Mesh>(null)
@@ -13,45 +52,45 @@ export function Stream() {
     // Generate stream path points
     const pathPoints: THREE.Vector3[] = []
     const steps = 80
-    const length = 110
+    const size = 120
     for (let i = 0; i < steps; i++) {
       const t = i / steps
-      const z = -length / 2 + t * length
       const x = Math.sin(t * Math.PI * 3) * 6 + Math.sin(t * Math.PI * 7) * 2
-      const y = -0.6 + noise2D(x * 0.05, z * 0.05) * 0.2
-      pathPoints.push(new THREE.Vector3(x, y, z))
+      const z = -size / 2 + t * size
+      pathPoints.push(new THREE.Vector3(x, 0, z))
     }
 
-    // Build ribbon geometry along path
-    const width = 3.5
+    const widthSegments = 8
     const verts: number[] = []
     const uvs: number[] = []
-    const indices: number[] = []
     const normals: number[] = []
+    const indices: number[] = []
+    const streamWidth = 2.5
 
+    for (let i = 0; i < pathPoints.length; i++) {
+      const p = pathPoints[i]!
+      const prev = pathPoints[Math.max(0, i - 1)]!
+      const next = pathPoints[Math.min(pathPoints.length - 1, i + 1)]!
+      const tangent = new THREE.Vector3().subVectors(next, prev).normalize()
+      const side = new THREE.Vector3(-tangent.z, 0, tangent.x).normalize()
+
+      for (let j = 0; j <= widthSegments; j++) {
+        const tx = j / widthSegments - 0.5
+        const px = p.x + side.x * tx * streamWidth
+        const pz = p.z + side.z * tx * streamWidth
+        verts.push(px, 0, pz)
+        uvs.push(tx + 0.5, i / (pathPoints.length - 1))
+        normals.push(0, 1, 0)
+      }
+    }
     for (let i = 0; i < pathPoints.length - 1; i++) {
-      const p0 = pathPoints[i]
-      const p1 = pathPoints[i + 1]
-      const dir = p1.clone().sub(p0).normalize()
-      const perp = new THREE.Vector3(-dir.z, 0, dir.x)
-
-      const u0 = i / (pathPoints.length - 1)
-      const u1 = (i + 1) / (pathPoints.length - 1)
-
-      // Left and right vertices
-      verts.push(
-        p0.x - perp.x * width, p0.y, p0.z - perp.z * width,
-        p0.x + perp.x * width, p0.y, p0.z + perp.z * width,
-        p1.x - perp.x * width, p1.y, p1.z - perp.z * width,
-        p1.x + perp.x * width, p1.y, p1.z + perp.z * width,
-      )
-
-      uvs.push(0, u0, 1, u0, 0, u1, 1, u1)
-
-      normals.push(0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0)
-
-      const base = i * 4
-      indices.push(base, base + 2, base + 1, base + 1, base + 2, base + 3)
+      for (let j = 0; j < widthSegments; j++) {
+        const a = i * (widthSegments + 1) + j
+        const b = a + 1
+        const c = a + (widthSegments + 1)
+        const d = c + 1
+        indices.push(a, c, b, b, c, d)
+      }
     }
 
     const geo = new THREE.BufferGeometry()
@@ -64,105 +103,80 @@ export function Stream() {
     return { geometry: geo, flowUvs: uvs }
   }, [])
 
+  void flowUvs
+
+  // ── TSL water material ──
+  const uColor1 = uniform(new THREE.Color(0x4a8b8b))
+  const uColor2 = uniform(new THREE.Color(0x2e6b6b))
+  const uColor3 = uniform(new THREE.Color(0xffffff))
+  const normalMap = useMemo(() => PbrTextures.waterNormal([4, 8]), [])
+  const uNormalMap = uniform(normalMap)
+
   const material = useMemo(() => {
-    const normalMap = PbrTextures.waterNormal([4, 8])
-    return new THREE.ShaderMaterial({
+    const mat = new THREE.MeshStandardNodeMaterial({
       transparent: true,
-      uniforms: {
-        uTime: { value: 0 },
-        uColor1: { value: new THREE.Color(0x4a8b8b) },
-        uColor2: { value: new THREE.Color(0x2e6b6b) },
-        uColor3: { value: new THREE.Color(0xffffff) },
-        uNormalMap: { value: normalMap },
-      },
-      vertexShader: `
-        uniform float uTime;
-        varying vec2 vUv;
-        varying vec3 vWorldPos;
-        varying vec3 vViewDir;
-        void main() {
-          vUv = uv;
-          vec3 pos = position;
-          // 顶点波动：让水面真的有起伏（不再平带）
-          pos.y += sin(pos.z * 1.5 + uTime * 1.2) * 0.08
-                 + sin(pos.x * 2.0 + uTime * 0.9) * 0.05;
-          vec4 worldPos = modelMatrix * vec4(pos, 1.0);
-          vWorldPos = worldPos.xyz;
-          // 视线方向（用于 Fresnel）：相机世界位 - 顶点世界位
-          vec4 mvPos = viewMatrix * worldPos;
-          vViewDir = normalize(cameraPosition - worldPos.xyz);
-          gl_Position = projectionMatrix * mvPos;
-        }
-      `,
-      fragmentShader: `
-        uniform float uTime;
-        uniform vec3 uColor1;
-        uniform vec3 uColor2;
-        uniform vec3 uColor3;
-        uniform sampler2D uNormalMap;
-        varying vec2 vUv;
-        varying vec3 vWorldPos;
-        varying vec3 vViewDir;
-
-        // Simple noise
-        float hash(vec2 p) {
-          return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
-        }
-
-        float noise(vec2 p) {
-          vec2 i = floor(p);
-          vec2 f = fract(p);
-          f = f * f * (3.0 - 2.0 * f);
-          float a = hash(i);
-          float b = hash(i + vec2(1.0, 0.0));
-          float c = hash(i + vec2(0.0, 1.0));
-          float d = hash(i + vec2(1.0, 1.0));
-          return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);
-        }
-
-        void main() {
-          // Flowing UV（双流法线采样，模拟水面凹凸流动）
-          vec2 flowUv = vUv;
-          flowUv.y += uTime * 0.08;
-          vec2 nUv1 = flowUv * 3.0 + vec2(0.0, uTime * 0.05);
-          vec2 nUv2 = flowUv * 3.0 - vec2(0.0, uTime * 0.07) + 0.5;
-          vec3 n1 = texture2D(uNormalMap, nUv1).rgb * 2.0 - 1.0;
-          vec3 n2 = texture2D(uNormalMap, nUv2).rgb * 2.0 - 1.0;
-          vec3 waterNormal = normalize(vec3(n1.xy + n2.xy, n1.z));
-
-          // Fresnel：近水平角（视线越平行水面）反射越强
-          float fresnel = pow(1.0 - max(dot(vViewDir, vec3(0.0, 1.0, 0.0)), 0.0), 3.0);
-
-          // Water color with noise
-          float n = noise(flowUv * 15.0) * 0.3;
-          float n2 = noise(flowUv * 30.0 - uTime * 0.1) * 0.15;
-          float wave = sin(flowUv.y * 40.0 + uTime * 2.0) * 0.02;
-
-          vec3 deepColor = mix(uColor1, uColor2, vUv.x + n);
-          deepColor += n2 * 0.3;
-          // Fresnel 把高光天色混到近水平角
-          vec3 color = mix(deepColor, uColor3, fresnel * 0.6);
-
-          // Sparkle on water surface（用法线扰动增强高光）
-          float sparkle = noise(flowUv * 50.0) * noise(flowUv * 80.0 - uTime);
-          color += uColor3 * sparkle * 0.15 * (0.5 + fresnel);
-
-          // Edge darkening (banks)
-          float edgeFade = smoothstep(0.0, 0.15, vUv.x) * smoothstep(1.0, 0.85, vUv.x);
-          float edgeFadeZ = smoothstep(0.0, 0.05, vUv.y) * smoothstep(1.0, 0.95, vUv.y);
-
-          float alpha = 0.7 + n * 0.15 + wave;
-          alpha *= edgeFade * edgeFadeZ;
-
-          gl_FragColor = vec4(color + wave * 0.1, alpha);
-        }
-      `,
+      roughness: 0.2,
+      metalness: 0.0,
+      side: THREE.DoubleSide,
+      depthWrite: false,
     })
-  }, [])
 
-  useFrame(({ clock }) => {
-    material.uniforms.uTime.value = clock.elapsedTime
-  })
+    // Vertex: wave the y position (port of GLSL vertex shader).
+    mat.positionNode = Fn(() => {
+      const pos = positionLocal
+      const wave = sin(pos.z.mul(1.5).add(time.mul(1.2))).mul(0.08)
+        .add(sin(pos.x.mul(2.0).add(time.mul(0.9))).mul(0.05))
+      return vec3(pos.x, pos.y.add(wave), pos.z)
+    })()
+
+    // Fragment: flowing normal-map water + Fresnel + sparkle + edge fade.
+    mat.outputNode = Fn(() => {
+      const vuv = uv()
+
+      // Flow UV (scrolling).
+      const flowUv = vec2(vuv.x, vuv.y.add(time.mul(0.08)))
+      const nUv1 = flowUv.mul(3).add(vec2(0, time.mul(0.05)))
+      const nUv2 = flowUv.mul(3).sub(vec2(0, time.mul(0.07))).add(0.5)
+      const n1 = texture(uNormalMap, nUv1).rgb.mul(2).sub(1)
+      const n2 = texture(uNormalMap, nUv2).rgb.mul(2).sub(1)
+      // waterNormal: keep normalize safe (avoid NaN on zero vector).
+      const waterN = normalize(vec3(n1.x.add(n2.x), n1.y.add(n2.y), max(n1.z, 0.001)))
+
+      // World position + view direction for Fresnel.
+      const worldPos = modelWorldMatrix.mul(vec4(positionLocal, 1)).xyz
+      const viewDir = normalize(cameraPosition.sub(worldPos))
+      const fresnel = pow(sub(1, max(dot(viewDir, vec3(0, 1, 0)), 0)), 3)
+
+      // Water color with noise.
+      const n = valueNoise(flowUv.mul(15)).mul(0.3)
+      const nHi = valueNoise(flowUv.mul(30).sub(vec2(0, time.mul(0.1)))).mul(0.15)
+      const waveBand = sin(flowUv.y.mul(40).add(time.mul(2))).mul(0.02)
+
+      let deepColor = mix(uColor1, uColor2, vuv.x.add(n))
+      deepColor = deepColor.add(nHi.mul(0.3))
+      let color = mix(deepColor, uColor3, fresnel.mul(0.6))
+
+      // Sparkle.
+      const sparkle = valueNoise(flowUv.mul(50)).mul(
+        valueNoise(flowUv.mul(80).sub(vec2(0, time))),
+      )
+      color = color.add(uColor3.mul(sparkle).mul(0.15).mul(fresnel.add(0.5)))
+
+      // Edge fade (banks).
+      const edgeFade = smoothstep(0, 0.15, vuv.x).mul(smoothstep(1, 0.85, vuv.x))
+      const edgeFadeZ = smoothstep(0, 0.05, vuv.y).mul(smoothstep(1, 0.95, vuv.y))
+
+      let alpha = float(0.7).add(n.mul(0.15)).add(waveBand)
+      alpha = alpha.mul(edgeFade).mul(edgeFadeZ)
+
+      return vec4(color.add(waveBand.mul(0.1)), alpha)
+    })()
+
+    return mat
+  }, [normalMap, uColor1, uColor2, uColor3, uNormalMap])
+
+  // No uTime plumbing needed — TSL `time` node auto-advances.
+  useFrame(() => {})
 
   return <mesh ref={meshRef} geometry={geometry} material={material} />
 }

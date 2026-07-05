@@ -1,5 +1,4 @@
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
-import { Html } from '@react-three/drei'
 import { RigidBody, CuboidCollider } from '@react-three/rapier'
 import { Suspense, useRef, useState, useEffect, useCallback } from 'react'
 import { PlayerController, MobileControls } from '../../engine/PlayerController'
@@ -93,49 +92,53 @@ function ForestCaptionWatcher({ onCaption }: { onCaption: (text: string) => void
   return null
 }
 
-function Compass() {
+// Compass HUD — split into a Canvas-side tracker (reads camera per-frame)
+// and a DOM-side HUD (renders the arrow). This avoids drei <Html>, which
+// crashes WebGPURenderer (canvasTarget.domElement.getContext is not a function).
+// The tracker writes the angle directly to the HUD's DOM node via id lookup.
+
+const COMPASS_HUD_ID = 'peach-compass-hud'
+
+function CompassTracker() {
   const { camera } = useThree()
-
-  return (
-    <Html position={[0, 0, 0]} fullscreen style={{ pointerEvents: 'none' }}>
-      <div
-        style={{
-          position: 'absolute',
-          top: '16px',
-          right: '16px',
-          width: '60px',
-          height: '60px',
-          borderRadius: '50%',
-          border: '1px solid rgba(212, 197, 169, 0.3)',
-          background: 'rgba(0,0,0,0.3)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          fontSize: '10px',
-          color: 'rgba(212, 197, 169, 0.5)',
-          letterSpacing: '0.05em',
-        }}
-      >
-        <CompassArrow camera={camera} />
-      </div>
-    </Html>
-  )
-}
-
-function CompassArrow({ camera }: { camera: THREE.Camera }) {
-  const ref = useRef<HTMLDivElement>(null)
+  const camDir = useRef(new THREE.Vector3())
+  const toCave = useRef(new THREE.Vector3())
 
   useFrame(() => {
-    if (!ref.current) return
-    const camDir = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion)
-    const toCave = new THREE.Vector3(0, 0, CAVE_WORLD_Z).sub(camera.position).normalize()
-    const angle = Math.atan2(camDir.x, camDir.z) - Math.atan2(toCave.x, toCave.z)
-    ref.current.style.transform = `rotate(${-angle}rad)`
+    const el = document.getElementById(COMPASS_HUD_ID)
+    if (!el) return
+    camDir.current.set(0, 0, -1).applyQuaternion(camera.quaternion)
+    toCave.current.set(0, 0, CAVE_WORLD_Z).sub(camera.position).normalize()
+    const angle = Math.atan2(camDir.current.x, camDir.current.z) - Math.atan2(toCave.current.x, toCave.current.z)
+    el.style.transform = `rotate(${-angle}rad)`
   })
 
+  return null
+}
+
+function CompassHUD() {
   return (
-    <div ref={ref} style={{ position: 'absolute', transition: 'transform 0.1s' }}>
-      ↑ 洞
+    <div
+      style={{
+        position: 'absolute',
+        top: '16px',
+        right: '16px',
+        width: '60px',
+        height: '60px',
+        borderRadius: '50%',
+        border: '1px solid rgba(212, 197, 169, 0.3)',
+        background: 'rgba(0,0,0,0.3)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        fontSize: '10px',
+        color: 'rgba(212, 197, 169, 0.5)',
+        letterSpacing: '0.05em',
+        pointerEvents: 'none',
+        zIndex: 10,
+      }}
+    >
+      <div id={COMPASS_HUD_ID} style={{ transition: 'transform 0.1s' }}>↑ 洞</div>
     </div>
   )
 }
@@ -216,14 +219,12 @@ export default function PeachForestSceneContent() {
           <ForestCaptionWatcher onCaption={showCaption} />
           <PlayerController position={[0, 3, 10]} />
         </PhysicsWorld>
-        {/* Compass temporarily disabled — drei <Html> crashes WebGPURenderer
-            (canvasTarget.domElement.getContext is not a function). Re-enable
-            after migrating Compass to a non-Html overlay. */}
-        {/* <Compass /> */}
+        <CompassTracker />
         <InkWashEffect inkIntensity={1.3} edgeStrength={1.2} paperRoughness={0.35} />
       </Canvas>
 
       <NarrativeCaption text={caption} visible={captionVisible} />
+      <CompassHUD />
 
       <div className="absolute top-4 left-1/2 -translate-x-1/2 pointer-events-none z-10">
         <p className="text-sm opacity-50" style={{ color: '#d4c5a9', letterSpacing: '0.15em' }}>
