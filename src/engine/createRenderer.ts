@@ -1,15 +1,16 @@
 // Shared WebGPU renderer factory for all <Canvas> instances.
 //
-// R3F v9 + three r184: WebGPURenderer is the unified entry. It transparently
-// falls back to WebGL2 when WebGPU is unavailable (Safari < 17.4, older
-// mobile). TSL shaders compile to WGSL on WebGPU and GLSL on WebGL2.
+// R3F v9 + three r184: WebGPURenderer is the unified entry. It CAN fall back
+// to WebGL2 automatically, but in practice on macOS Chrome the detection is
+// unreliable: `navigator.gpu` exists but `requestAdapter()` returns null or
+// hangs, so `renderer.init()` never resolves and the Canvas never mounts
+// (visible as a black screen with no error).
 //
-// The factory MUST be async and MUST await renderer.init() — WebGPU adapter
-// acquisition is async. R3F v9's `gl` prop accepts this async form.
+// Fix: explicitly probe WebGPU adapter availability FIRST. If the probe fails
+// or times out, construct WebGPURenderer with `forceWebGL: true` to use the
+// reliable WebGL2 backend (TSL still compiles to GLSL on this path).
 //
-// IMPORTANT (R3F v9 API): the gl factory receives R3F's full state object
-// (with { canvas, ... }) — NOT just the canvas element. Pass it through to
-// WebGPURenderer's constructor as a single object.
+// The factory MUST be async and MUST await renderer.init().
 
 import { WebGPURenderer } from 'three/webgpu'
 import * as THREE from 'three/webgpu'
@@ -20,23 +21,45 @@ export interface RendererOptions {
 }
 
 /**
+ * Probe whether WebGPU is actually usable (not just present). Returns false if
+ * navigator.gpu is missing, requestAdapter() returns null, or the probe times
+ * out (macOS Chrome can hang here on some GPU/driver combos).
+ */
+async function probeWebGPU(): Promise<boolean> {
+  if (typeof navigator === 'undefined' || !navigator.gpu) return false
+  try {
+    const adapter = await Promise.race([
+      navigator.gpu.requestAdapter(),
+      new Promise<null>((resolve) => setTimeout(() => resolve(null), 3000)),
+    ])
+    return adapter !== null
+  } catch {
+    return false
+  }
+}
+
+/**
  * Returns an async factory suitable for R3F v9's `<Canvas gl={...}>` prop.
- * Pattern from ektogamat/r3f-webgpu-starter: pass the full props object to
- * WebGPURenderer, init async, return the renderer.
+ * Probes WebGPU; falls back to WebGL2 backend (forceWebGL) when unavailable.
  */
 export function createRenderer(options: RendererOptions = {}) {
   return async (props: { canvas: HTMLCanvasElement } & Record<string, unknown>) => {
+    const webGPUAvailable = await probeWebGPU()
     const renderer = new WebGPURenderer({
       ...props,
       antialias: options.antialias ?? true,
       powerPreference: options.powerPreference ?? 'high-performance',
+      forceWebGL: !webGPUAvailable,
     })
     await renderer.init()
 
-    // ACES tone mapping + sRGB output — bake tone mapping here so colors look
-    // right without PostFX (Phase D's TSL chain adds per-act grade on top).
+    // ACES tone mapping + sRGB output.
     renderer.toneMapping = THREE.ACESFilmicToneMapping
     renderer.toneMappingExposure = 1.05
+
+    if (!webGPUAvailable) {
+      console.info('[renderer] WebGPU unavailable — using WebGL2 backend')
+    }
 
     return renderer
   }
