@@ -27,6 +27,7 @@ import {
   VillageBridge,
   VillagePeachTrees,
   VillageNpc,
+  VillageNpcLabels,
   VillageDetails,
 } from '../world/village'
 
@@ -186,6 +187,7 @@ export default function VillageSceneContent() {
         </PhysicsWorld>
       </Canvas>
 
+      <VillageNpcLabels names={['老翁', '渔女', '书生', '童子']} />
       {activeNPC && typedText && (
         <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-20" onClick={closeDialogue}>
           <div

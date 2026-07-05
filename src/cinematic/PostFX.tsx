@@ -24,7 +24,6 @@ import * as THREE from 'three/webgpu'
 import { RenderPipeline } from 'three/webgpu'
 import { pass, uniform, Fn, vec3, vec4, mix, smoothstep, dot, length, mul, add, sub, uv } from 'three/tsl'
 import { bloom } from 'three/addons/tsl/display/BloomNode.js'
-import { dof } from 'three/addons/tsl/display/DepthOfFieldNode.js'
 import { smaa } from 'three/addons/tsl/display/SMAANode.js'
 
 // 8-act presets — values preserved verbatim from the original PostFX.
@@ -97,20 +96,15 @@ export function PostFX({ actIndex }: PostFXProps) {
     const post = new RenderPipeline(gl as any)
     const scenePass = pass(scene, camera)
 
-    // Chain: Bloom → DoF → color grade → vignette → SMAA.
-    // (N8AO dropped — GTAONode requires explicit depth+normal node wiring that
-    // needs more integration work; acceptable visual loss per migration plan.)
+    // Simplified chain: bloom → color grade → vignette → SMAA.
+    // (N8AO + DoF dropped — GTAONode needs explicit depth+normal wiring,
+    //  dof's viewZ signature is uncertain. Bloom + grade + vignette covers
+    //  the dominant look; restore DoF once API is confirmed.)
     let chain: any = scenePass
 
-    const bloomPass = bloom(chain)
-    bloomPass.threshold.value = uBloomThreshold.value
-    bloomPass.intensity.value = uBloomIntensity.value
-    chain = bloomPass
-
-    // DoF: dof(node, viewZ, focusDistance, focalLength, bokehScale).
-    // Using the scenePass's built-in viewZ; focus tuned by uDofFocus uniform.
-    const dofPass = dof(chain, chain.viewZ, uDofFocus, 0.04, 1.5)
-    chain = dofPass
+    // Bloom — pass strength/radius/threshold as constructor args (the safest
+    // path; the .threshold.value mutation pattern is fragile across versions).
+    chain = bloom(chain, uBloomIntensity, 0.6, uBloomThreshold)
 
     // Color grade (brightness/contrast/saturation).
     chain = colorGrade(chain, uBrightness, uContrast, uSaturation)
