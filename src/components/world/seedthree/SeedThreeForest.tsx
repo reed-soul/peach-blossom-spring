@@ -13,7 +13,7 @@
 // manual sun-direction traversal either.
 
 import { useEffect, useMemo, useRef } from 'react'
-import { useThree } from '@react-three/fiber'
+import { useThree, useFrame } from '@react-three/fiber'
 import * as THREE from 'three/webgpu'
 import { getTerrainHeight, getStreamX } from '../Terrain'
 import { buildForestAssets, type ForestAssets } from './SingleTree'

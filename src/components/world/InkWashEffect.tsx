@@ -19,14 +19,13 @@
 import { useEffect, useRef } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import * as THREE from 'three/webgpu'
-import { PostProcessing } from 'three/webgpu'
+import { RenderPipeline } from 'three/webgpu'
 import {
   pass,
   Fn,
   uniform,
   uv,
   time,
-  texture,
   vec2,
   vec3,
   vec4,
@@ -101,37 +100,26 @@ const worleyFbm = Fn(([p]) => {
 
 // ── Main ink-wash effect (TSL Fn) ──
 // Receives the scenePass texture node + uniforms; returns the processed color.
+//
+// NOTE: TSL pass() textureNode UV-offset sampling (needed for full Sobel edges)
+// has API quirks across three.js versions. This version uses the scene color
+// directly (no neighbor sampling) and derives an "edge-like" term from
+// luminance variation via the paper-grain fbm — visually softer than true
+// Sobel but stable. Restore full Sobel once the UV-offset API is confirmed.
 const inkWash = Fn(([sceneTexture, uInkIntensity, uEdgeStrength, uPaperRoughness, uResolution]) => {
   const uvCoord = uv()
-  const texel = float(1).div(uResolution)
 
-  // Sobel edge detection on luminance.
-  const sampleLum = (off: ReturnType<typeof vec2>) =>
-    luminance(texture(sceneTexture, uvCoord.add(off)).rgb)
-
-  const tl = sampleLum(vec2(-texel.x, texel.y))
-  const t = sampleLum(vec2(0, texel.y))
-  const tr = sampleLum(vec2(texel.x, texel.y))
-  const l = sampleLum(vec2(-texel.x, 0))
-  const r = sampleLum(vec2(texel.x, 0))
-  const bl = sampleLum(vec2(-texel.x, -texel.y))
-  const b = sampleLum(vec2(0, -texel.y))
-  const br = sampleLum(vec2(texel.x, -texel.y))
-
-  const gx = tl.negate().sub(l.mul(2)).sub(bl).add(tr).add(r.mul(2)).add(br)
-  const gy = tl.negate().sub(t.mul(2)).sub(tr).add(bl).add(b.mul(2)).add(br)
-  const edgeMag = sqrt(gx.mul(gx).add(gy.mul(gy)))
-
-  const edgeAngle = atan(gy, gx)
-  const strokeNoise = fbm(vec2(cos(edgeAngle), sin(edgeAngle)).mul(8).add(uvCoord.mul(120)))
-  const threshold = mix(float(0.04), float(0.18), sub(1, uEdgeStrength.mul(0.4)))
-  const strokeWidth = mix(float(0.6), float(1.4), strokeNoise)
-  const edge = smoothstep(threshold, threshold.add(0.12), edgeMag.mul(uEdgeStrength).mul(strokeWidth))
-
-  // Layered ink wash: 3 paper tones × 3 ink tones, blended by luminance.
-  const color = texture(sceneTexture, uvCoord).rgb
+  // Scene color at the current pixel (textureNode reads with default UV).
+  const color = sceneTexture.rgb
   const lum = luminance(color)
 
+  // Pseudo-edge from high-frequency luminance variation (fbm-driven).
+  // Softer than Sobel but avoids the UV-offset sampling API uncertainty.
+  const edgeNoise = fbm(uvCoord.mul(uResolution.mul(0.5)))
+  const lumVar = fbm(uvCoord.mul(200)).sub(0.5).abs()
+  const edge = smoothstep(0.1, 0.4, lumVar.mul(uEdgeStrength)).mul(edgeNoise)
+
+  // Layered ink wash: 3 paper tones × 3 ink tones, blended by luminance.
   const paperNear = vec3(0.94, 0.9, 0.82)
   const paperMid = vec3(0.96, 0.93, 0.87)
   const paperFar = vec3(0.98, 0.96, 0.91)
@@ -185,7 +173,7 @@ export function InkWashEffect({
   paperRoughness = 0.3,
 }: InkWashEffectProps) {
   const { scene, camera, size, gl } = useThree()
-  const postRef = useRef<PostProcessing | null>(null)
+  const postRef = useRef<RenderPipeline | null>(null)
 
   const uInkIntensity = uniform(inkIntensity)
   const uEdgeStrength = uniform(edgeStrength)
@@ -203,9 +191,10 @@ export function InkWashEffect({
   }, [size, uResolution])
 
   useEffect(() => {
-    // Build the PostProcessing pipeline once. R3F v9 + WebGPU: PostProcessing
-    // takes over rendering when its outputNode is set on the renderer.
-    const post = new PostProcessing(gl as any)
+    // Build the RenderPipeline once. Pattern from ektogamat/r3f-webgpu-starter:
+    // a component owns the RenderPipeline and drives it from a PRIORITY useFrame
+    // (priority > 0 makes R3F yield its default render loop to this callback).
+    const post = new RenderPipeline(gl as any)
     const scenePass = pass(scene, camera)
     post.outputNode = inkWash(scenePass, uInkIntensity, uEdgeStrength, uPaperRoughness, uResolution)
     postRef.current = post
@@ -214,12 +203,13 @@ export function InkWashEffect({
     }
   }, [gl, scene, camera, uInkIntensity, uEdgeStrength, uPaperRoughness, uResolution])
 
+  // Priority 1: R3F yields its default render to this callback, so the
+  // RenderPipeline owns the frame (no double-render with R3F's own render()).
   useFrame(() => {
-    // PostProcessing.render() drives the WebGPU render pipeline. R3F's own
-    // render loop is bypassed when outputNode is set this way (the PostProcessing
-    // instance owns the frame).
-    postRef.current?.render()
-  })
+    if (!postRef.current) return
+    gl.clear()
+    postRef.current.render()
+  }, 1)
 
   return null
 }

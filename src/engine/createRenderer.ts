@@ -7,8 +7,9 @@
 // The factory MUST be async and MUST await renderer.init() — WebGPU adapter
 // acquisition is async. R3F v9's `gl` prop accepts this async form.
 //
-// All Canvas elements import `createRenderer` from here so renderer config
-// (tone mapping, color space, antialias) lives in one place.
+// IMPORTANT (R3F v9 API): the gl factory receives R3F's full state object
+// (with { canvas, ... }) — NOT just the canvas element. Pass it through to
+// WebGPURenderer's constructor as a single object.
 
 import { WebGPURenderer } from 'three/webgpu'
 import * as THREE from 'three/webgpu'
@@ -20,20 +21,20 @@ export interface RendererOptions {
 
 /**
  * Returns an async factory suitable for R3F v9's `<Canvas gl={...}>` prop.
- * The factory receives the canvas element from R3F.
+ * Pattern from ektogamat/r3f-webgpu-starter: pass the full props object to
+ * WebGPURenderer, init async, return the renderer.
  */
 export function createRenderer(options: RendererOptions = {}) {
-  return async (canvas: HTMLCanvasElement) => {
+  return async (props: { canvas: HTMLCanvasElement } & Record<string, unknown>) => {
     const renderer = new WebGPURenderer({
-      canvas,
+      ...props,
       antialias: options.antialias ?? true,
       powerPreference: options.powerPreference ?? 'high-performance',
     })
     await renderer.init()
 
-    // ACES tone mapping + sRGB output — the cinematic grade (PostFX) used to
-    // set this on the renderer directly. Until Phase D re-adds the TSL
-    // post-processing chain, bake tone mapping in here so colors look right.
+    // ACES tone mapping + sRGB output — bake tone mapping here so colors look
+    // right without PostFX (Phase D's TSL chain adds per-act grade on top).
     renderer.toneMapping = THREE.ACESFilmicToneMapping
     renderer.toneMappingExposure = 1.05
 

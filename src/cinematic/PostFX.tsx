@@ -21,7 +21,7 @@
 import { useEffect, useRef } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import * as THREE from 'three/webgpu'
-import { PostProcessing } from 'three/webgpu'
+import { RenderPipeline } from 'three/webgpu'
 import { pass, uniform, Fn, vec3, vec4, mix, smoothstep, dot, length, mul, add, sub, uv } from 'three/tsl'
 import { bloom } from 'three/addons/tsl/display/BloomNode.js'
 import { dof } from 'three/addons/tsl/display/DepthOfFieldNode.js'
@@ -77,7 +77,7 @@ export interface PostFXProps {
 
 export function PostFX({ actIndex }: PostFXProps) {
   const { scene, camera, gl } = useThree()
-  const postRef = useRef<PostProcessing | null>(null)
+  const postRef = useRef<RenderPipeline | null>(null)
 
   // Live uniforms — driven by the smoothed current-preset in useFrame.
   const uBloomIntensity = uniform(PRESETS[0]!.bloomIntensity)
@@ -93,8 +93,8 @@ export function PostFX({ actIndex }: PostFXProps) {
   const target = PRESETS[Math.min(actIndex, PRESETS.length - 1)]!
 
   useEffect(() => {
-    // Build the PostProcessing pipeline once.
-    const post = new PostProcessing(gl as any)
+    // Build the RenderPipeline once (priority useFrame drives it).
+    const post = new RenderPipeline(gl as any)
     const scenePass = pass(scene, camera)
 
     // Chain: Bloom → DoF → color grade → vignette → SMAA.
@@ -132,6 +132,8 @@ export function PostFX({ actIndex }: PostFXProps) {
     }
   }, [gl, scene, camera, uBloomIntensity, uBloomThreshold, uSaturation, uBrightness, uContrast, uVignetteDark, uDofFocus])
 
+  // Priority 1: R3F yields its default render to this callback so the
+  // RenderPipeline owns the frame (no double-render).
   useFrame((_, delta) => {
     // Lerp current → target (smooth transition between acts).
     const k = Math.min(1, delta * 1.5)
@@ -152,8 +154,10 @@ export function PostFX({ actIndex }: PostFXProps) {
     uVignetteDark.value = c.vignetteDark
     uDofFocus.value = c.dofFocus
 
-    postRef.current?.render()
-  })
+    if (!postRef.current) return
+    gl.clear()
+    postRef.current.render()
+  }, 1)
 
   return null
 }

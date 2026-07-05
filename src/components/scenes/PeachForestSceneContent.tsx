@@ -216,7 +216,10 @@ export default function PeachForestSceneContent() {
           <ForestCaptionWatcher onCaption={showCaption} />
           <PlayerController position={[0, 3, 10]} />
         </PhysicsWorld>
-        <Compass />
+        {/* Compass temporarily disabled — drei <Html> crashes WebGPURenderer
+            (canvasTarget.domElement.getContext is not a function). Re-enable
+            after migrating Compass to a non-Html overlay. */}
+        {/* <Compass /> */}
         <InkWashEffect inkIntensity={1.3} edgeStrength={1.2} paperRoughness={0.35} />
       </Canvas>
 
